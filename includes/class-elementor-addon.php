@@ -48,7 +48,9 @@ class Elementor_Addon {
 	 */
 	public function register_widgets( $widgets_manager ) {
 		require_once WP_MULTIPOST_BLOG_PATH . 'widgets/class-blog-posts-widget.php';
+		require_once WP_MULTIPOST_BLOG_PATH . 'widgets/class-blog-archive-widget.php';
 		$widgets_manager->register( new \WpMultiPostTypeBlog\Widgets\Blog_Posts_Widget() );
+		$widgets_manager->register( new \WpMultiPostTypeBlog\Widgets\Blog_Archive_Widget() );
 	}
 
 	/**

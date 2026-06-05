@@ -518,6 +518,18 @@ class Blog_Posts_Widget extends Widget_Base {
 		);
 
 		$this->add_control(
+			'featured_post_type_prefix_color',
+			[
+				'label'     => esc_html__( 'Post Type Prefix Color', 'wp-multi-post-type-blog' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => [
+					'{{WRAPPER}} .featured-post__title .post-type-prefix' => 'color: {{VALUE}};',
+				],
+			]
+		);
+
+		$this->add_control(
 			'featured_meta_color',
 			[
 				'label'     => esc_html__( 'Meta Text / Icon Color', 'wp-multi-post-type-blog' ),
@@ -609,6 +621,18 @@ class Blog_Posts_Widget extends Widget_Base {
 				'default'   => '#2563eb',
 				'selectors' => [
 					'{{WRAPPER}} .list-post-item__title a:hover' => 'color: {{VALUE}};',
+				],
+			]
+		);
+
+		$this->add_control(
+			'list_post_type_prefix_color',
+			[
+				'label'     => esc_html__( 'Post Type Prefix Color', 'wp-multi-post-type-blog' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => [
+					'{{WRAPPER}} .list-post-item__title .post-type-prefix' => 'color: {{VALUE}};',
 				],
 			]
 		);
@@ -813,7 +837,16 @@ class Blog_Posts_Widget extends Widget_Base {
 				<?php endif; ?>
 				
 				<h2 class="featured-post__title">
-					<a href="<?php echo esc_url( $permalink ); ?>"><?php echo esc_html( $title ); ?></a>
+					<a href="<?php echo esc_url( $permalink ); ?>">
+						<?php if ( 'post' !== $post->post_type ) : ?>
+							<?php
+							$post_type_obj = get_post_type_object( $post->post_type );
+							$post_type_label = $post_type_obj ? $post_type_obj->labels->singular_name : $post->post_type;
+							?>
+							<span class="post-type-prefix"><?php echo esc_html( $post_type_label ); ?>:</span> 
+						<?php endif; ?>
+						<?php echo esc_html( $title ); ?>
+					</a>
 				</h2>
 				
 				<?php if ( $show_meta ) : ?>
@@ -891,7 +924,16 @@ class Blog_Posts_Widget extends Widget_Base {
 			</div>
 			<div class="list-post-item__content">
 				<h3 class="list-post-item__title">
-					<a href="<?php echo esc_url( $permalink ); ?>"><?php echo esc_html( $title ); ?></a>
+					<a href="<?php echo esc_url( $permalink ); ?>">
+						<?php if ( 'post' !== $post->post_type ) : ?>
+							<?php
+							$post_type_obj = get_post_type_object( $post->post_type );
+							$post_type_label = $post_type_obj ? $post_type_obj->labels->singular_name : $post->post_type;
+							?>
+							<span class="post-type-prefix"><?php echo esc_html( $post_type_label ); ?>:</span> 
+						<?php endif; ?>
+						<?php echo esc_html( $title ); ?>
+					</a>
 				</h3>
 				
 				<?php if ( $show_meta ) : ?>
@@ -997,40 +1039,39 @@ class Blog_Posts_Widget extends Widget_Base {
 
 			<?php
 			// Standard numerical pagination
-			if ( 'numbers' === $pagination && $max_pages > 1 ) {
-				echo '<div class="premium-blog-widget__pagination numbers-pagination">';
-				echo paginate_links( array(
-					'base'      => esc_url_raw( add_query_arg( $page_var, '%#%' ) ),
-					'format'    => '',
-					'current'   => max( 1, $paged ),
-					'total'     => $max_pages,
-					'prev_text' => '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Anterior',
-					'next_text' => 'Siguiente <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>',
-				) );
-				echo '</div>';
-			}
+			?>
+			<div class="premium-blog-widget__pagination numbers-pagination" style="<?php echo ( 'numbers' === $pagination && $max_pages > 1 ) ? '' : 'display: none;'; ?>">
+				<?php
+				if ( 'numbers' === $pagination && $max_pages > 1 ) {
+					echo paginate_links( array(
+						'base'      => esc_url_raw( add_query_arg( $page_var, '%#%' ) ),
+						'format'    => '',
+						'current'   => max( 1, $paged ),
+						'total'     => $max_pages,
+						'prev_text' => '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Anterior',
+						'next_text' => 'Siguiente <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>',
+					) );
+				}
+				?>
+			</div>
 
+			<?php
 			// AJAX Load More Button
-			if ( 'load_more' === $pagination && $max_pages > 1 && $paged < $max_pages ) {
-				$btn_text = $settings['load_more_text'];
-				?>
-				<div class="premium-blog-widget__pagination-ajax ajax-pagination">
-					<button class="wp-multipost-blog-load-more-btn" aria-label="<?php echo esc_attr( $btn_text ); ?>">
-						<span class="btn-text"><?php echo esc_html( $btn_text ); ?></span>
-						<span class="btn-spinner"></span>
-					</button>
-				</div>
-				<?php
-			}
+			$btn_text = $settings['load_more_text'];
+			?>
+			<div class="premium-blog-widget__pagination-ajax ajax-pagination" style="<?php echo ( 'load_more' === $pagination && $max_pages > 1 && $paged < $max_pages ) ? '' : 'display: none;'; ?>">
+				<button class="wp-multipost-blog-load-more-btn" aria-label="<?php echo esc_attr( $btn_text ); ?>">
+					<span class="btn-text"><?php echo esc_html( $btn_text ); ?></span>
+					<span class="btn-spinner"></span>
+				</button>
+			</div>
 
+			<?php
 			// Infinite Scroll Loader
-			if ( 'infinite' === $pagination && $max_pages > 1 && $paged < $max_pages ) {
-				?>
-				<div class="premium-blog-widget__infinite-trigger infinite-pagination">
-					<div class="infinite-loader-spinner"></div>
-				</div>
-				<?php
-			}
+			?>
+			<div class="premium-blog-widget__infinite-trigger infinite-pagination" style="<?php echo ( 'infinite' === $pagination && $max_pages > 1 && $paged < $max_pages ) ? '' : 'display: none;'; ?>">
+				<div class="infinite-loader-spinner"></div>
+			</div>
 			?>
 		</div>
 		<?php

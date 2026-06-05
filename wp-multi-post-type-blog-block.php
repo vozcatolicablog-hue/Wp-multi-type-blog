@@ -185,6 +185,7 @@ function wp_multipost_blog_sanitize_settings( $settings ) {
 	}
 
 	$current_post_id = ! empty( $settings['current_post_id'] ) ? absint( $settings['current_post_id'] ) : 0;
+	$archive_author_id = ! empty( $settings['archive_author_id'] ) ? absint( $settings['archive_author_id'] ) : 0;
 
 	if ( ! in_array( $orderby, wp_multipost_blog_allowed_orderby(), true ) ) {
 		$orderby = 'date';
@@ -236,6 +237,7 @@ function wp_multipost_blog_sanitize_settings( $settings ) {
 		'list_image_size'      => ! empty( $settings['list_image_size'] ) ? sanitize_key( $settings['list_image_size'] ) : 'medium_large',
 		'columns'              => ! empty( $settings['columns'] ) ? max( 1, min( 3, intval( $settings['columns'] ) ) ) : 1,
 		'pagination'           => $pagination,
+		'archive_author_id'    => $archive_author_id,
 	);
 }
 
@@ -275,6 +277,10 @@ function wp_multipost_blog_build_query_args( $settings, $paged = 1 ) {
 
 	if ( ! empty( $settings['authors'] ) ) {
 		$query_args['author__in'] = $settings['authors'];
+	}
+
+	if ( ! empty( $settings['archive_author_id'] ) ) {
+		$query_args['author'] = $settings['archive_author_id'];
 	}
 
 	if ( ! empty( $settings['exclude_ids'] ) ) {
@@ -329,6 +335,11 @@ function wp_multipost_blog_load_more_handler() {
 
 	if ( empty( $signature ) || ! hash_equals( wp_multipost_blog_sign_settings( $settings ), $signature ) ) {
 		wp_send_json_error( 'Configuración no autorizada.', 403 );
+	}
+
+	$filter_post_type = isset( $_POST['filter_post_type'] ) ? sanitize_key( wp_unslash( $_POST['filter_post_type'] ) ) : '';
+	if ( ! empty( $filter_post_type ) && in_array( $filter_post_type, $settings['post_types'], true ) ) {
+		$settings['post_types'] = array( $filter_post_type );
 	}
 
 	$query_args = wp_multipost_blog_build_query_args( $settings, $paged );

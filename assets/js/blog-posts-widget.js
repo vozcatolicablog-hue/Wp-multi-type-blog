@@ -47,7 +47,7 @@
 				if (isLoading || currentPage >= maxPages) {
 					return;
 				}
-				loadMorePosts();
+				loadMorePosts(false);
 			});
 		}
 
@@ -58,7 +58,7 @@
 				observer = new IntersectionObserver(function(entries) {
 					if (entries[0].isIntersecting) {
 						if (!isLoading && currentPage < maxPages) {
-							loadMorePosts();
+							loadMorePosts(false);
 						}
 					}
 				}, { 
@@ -69,13 +69,45 @@
 			}
 		}
 
+		// 3. Post Type Filter Tabs (for Archive Widget)
+		var activeFilterPostType = '';
+		var $filters = $widget.find('.premium-blog-archive__filters .filter-tab');
+		
+		$filters.on('click', function(e) {
+			e.preventDefault();
+			var $clickedTab = $(this);
+			if ($clickedTab.hasClass('active') || isLoading) {
+				return;
+			}
+			
+			$filters.removeClass('active');
+			$clickedTab.addClass('active');
+			activeFilterPostType = $clickedTab.attr('data-post-type') || '';
+			
+			// Reset pagination state
+			currentPage = 0;
+			maxPages = 1;
+			
+			$list.fadeOut(200, function() {
+				$list.empty().show();
+				loadMorePosts(true); // reset load
+			});
+		});
+
 		/**
 		 * Triggers the AJAX call to load the next page of posts.
+		 *
+		 * @param {boolean} isReset True if this is resetting page query.
 		 */
-		function loadMorePosts() {
+		function loadMorePosts(isReset) {
 			isLoading = true;
+			var nextPage = isReset ? 1 : (currentPage + 1);
+
 			if (pagination === 'load_more' && $btn) {
 				$btn.addClass('is-loading');
+				$widget.find('.premium-blog-widget__pagination-ajax').show();
+			} else if (pagination === 'infinite' && $trigger) {
+				$widget.find('.premium-blog-widget__infinite-trigger').show();
 			}
 
 			$.ajax({
@@ -85,52 +117,57 @@
 				data: {
 					action: 'wp_multiblog_load_more',
 					nonce: wpMultipostBlogAjax.nonce,
-					page: currentPage + 1,
+					page: nextPage,
 					signature: settingsSignature,
-					settings: settings
+					settings: settings,
+					filter_post_type: activeFilterPostType
 				},
 				success: function(response) {
-					if (response.success && response.data && response.data.html) {
-						var $newElements = $(response.data.html);
-						var responseMaxPages = parseInt(response.data.max_pages, 10);
-
-						if (responseMaxPages) {
-							maxPages = responseMaxPages;
+					if (response.success && response.data) {
+						var responseMaxPages = parseInt(response.data.max_pages, 10) || 0;
+						maxPages = responseMaxPages;
+						
+						if (isReset) {
+							currentPage = 0;
 						}
-						
-						// Setup initial states for smooth fade-in
-						$newElements.css({ opacity: 0, transform: 'translateY(15px)' });
-						$list.append($newElements);
-						
-						// Staggered sequential entry animation
-						$newElements.each(function(index, el) {
-							$(el).delay(index * 120).animate({
-								opacity: 1
-							}, {
-								duration: 500,
-								step: function(now, fx) {
-									if (fx.prop === 'opacity') {
-										// Map opacity [0-1] to Y translate [15px-0px]
-										$(el).css('transform', 'translateY(' + (15 - now * 15) + 'px)');
+
+						if (response.data.html) {
+							var $newElements = $(response.data.html);
+							
+							// Setup initial states for smooth fade-in
+							$newElements.css({ opacity: 0, transform: 'translateY(15px)' });
+							$list.append($newElements);
+							
+							// Staggered sequential entry animation
+							$newElements.each(function(index, el) {
+								$(el).delay(index * 120).animate({
+									opacity: 1
+								}, {
+									duration: 500,
+									step: function(now, fx) {
+										if (fx.prop === 'opacity') {
+											$(el).css('transform', 'translateY(' + (15 - now * 15) + 'px)');
+										}
 									}
-								}
+								});
 							});
-						});
 
-						currentPage++;
-						$widget.attr('data-current-page', currentPage);
-
-						// Handle page limit checks
-						if (currentPage >= maxPages) {
-							removeLoader();
+							currentPage = nextPage;
+							$widget.attr('data-current-page', currentPage);
+						} else if (isReset) {
+							// No posts found
+							var noPostsText = settings.no_posts_text || 'No se encontraron publicaciones.';
+							$list.html('<div class="premium-blog-no-posts">' + noPostsText + '</div>');
 						}
+
+						updateLoaderVisibility();
 					} else {
-						removeLoader();
+						updateLoaderVisibility();
 					}
 				},
 				error: function(xhr, status, error) {
 					console.error('AJAX request failed loading posts:', error);
-					removeLoader();
+					updateLoaderVisibility();
 				},
 				complete: function() {
 					isLoading = false;
@@ -142,20 +179,28 @@
 		}
 
 		/**
-		 * Safely tear down and remove loaders/triggers.
+		 * Toggles visibility of loaders based on pages limit.
 		 */
-		function removeLoader() {
-			if (pagination === 'load_more' && $btn) {
-				$btn.fadeOut(400, function() {
-					$btn.parent().remove();
-				});
-			} else if (pagination === 'infinite' && $trigger) {
-				if (observer) {
-					observer.disconnect();
+		function updateLoaderVisibility() {
+			if (currentPage >= maxPages || maxPages <= 1) {
+				if (pagination === 'load_more' && $btn) {
+					$widget.find('.premium-blog-widget__pagination-ajax').fadeOut(400);
+				} else if (pagination === 'infinite' && $trigger) {
+					if (observer) {
+						observer.disconnect();
+					}
+					$widget.find('.premium-blog-widget__infinite-trigger').fadeOut(400);
 				}
-				$trigger.fadeOut(400, function() {
-					$trigger.remove();
-				});
+			} else {
+				if (pagination === 'load_more' && $btn) {
+					$widget.find('.premium-blog-widget__pagination-ajax').fadeIn(400);
+				} else if (pagination === 'infinite' && $trigger) {
+					$widget.find('.premium-blog-widget__infinite-trigger').fadeIn(400);
+					if (observer && $trigger.length) {
+						observer.disconnect();
+						observer.observe($trigger[0]);
+					}
+				}
 			}
 		}
 	}
@@ -174,6 +219,13 @@
 		}
 
 		elementorFrontend.hooks.addAction('frontend/element_ready/wp_multi_post_type_blog_widget.default', function($scope) {
+			var $widgetContainer = $scope.find('.premium-blog-widget');
+			if ($widgetContainer.length) {
+				initWidget($widgetContainer[0]);
+			}
+		});
+
+		elementorFrontend.hooks.addAction('frontend/element_ready/wp_multi_post_type_archive_widget.default', function($scope) {
 			var $widgetContainer = $scope.find('.premium-blog-widget');
 			if ($widgetContainer.length) {
 				initWidget($widgetContainer[0]);

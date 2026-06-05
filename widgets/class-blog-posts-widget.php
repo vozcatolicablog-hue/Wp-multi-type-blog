@@ -602,6 +602,29 @@ class Blog_Posts_Widget extends Widget_Base {
 		);
 
 		$this->add_control(
+			'list_items_gap',
+			[
+				'label'      => esc_html__( 'Post Separation (Gap)', 'wp-multi-post-type-blog' ),
+				'type'       => Controls_Manager::SLIDER,
+				'size_units' => [ 'px', 'em', 'rem' ],
+				'range'      => [
+					'px' => [
+						'min'  => 0,
+						'max'  => 100,
+						'step' => 1,
+					],
+				],
+				'default'    => [
+					'unit' => 'px',
+					'size' => 32,
+				],
+				'selectors'  => [
+					'{{WRAPPER}} .premium-blog-widget__list' => 'gap: {{SIZE}}{{UNIT}};',
+				],
+			]
+		);
+
+		$this->add_control(
 			'list_card_bg',
 			[
 				'label'     => esc_html__( 'Item Background', 'wp-multi-post-type-blog' ),

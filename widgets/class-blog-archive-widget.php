@@ -62,6 +62,24 @@ class Blog_Archive_Widget extends Blog_Posts_Widget {
 		$settings_signature = wp_multipost_blog_sign_settings( $settings );
 		$columns_class = 'premium-blog-widget--columns-' . intval( $settings['columns'] );
 		$post_types = $settings['post_types'];
+
+		// Dynamically check which post types have actual posts matching the query parameters
+		$active_post_types = array();
+		foreach ( $post_types as $pt ) {
+			$pt_query_args = wp_multipost_blog_build_query_args( $settings, 1 );
+			$pt_query_args['posts_per_page'] = 1;
+			$pt_query_args['offset'] = 0;
+			if ( isset( $pt_query_args['paged'] ) ) {
+				unset( $pt_query_args['paged'] );
+			}
+			$pt_query_args['fields'] = 'ids';
+			$pt_query_args['post_type'] = $pt;
+
+			$pt_query = new \WP_Query( $pt_query_args );
+			if ( $pt_query->have_posts() ) {
+				$active_post_types[] = $pt;
+			}
+		}
 		?>
 		<div id="wp-multipost-blog-<?php echo esc_attr( $widget_id ); ?>" 
 			class="premium-blog-widget premium-blog-archive-widget <?php echo esc_attr( $columns_class ); ?>"
@@ -72,12 +90,12 @@ class Blog_Archive_Widget extends Blog_Posts_Widget {
 			data-max-pages="<?php echo esc_attr( $max_pages ); ?>"
 			data-current-page="<?php echo esc_attr( $paged ); ?>">
 			
-			<?php if ( count( $post_types ) > 1 ) : ?>
+			<?php if ( count( $active_post_types ) > 1 ) : ?>
 				<div class="premium-blog-archive__filters">
 					<button class="filter-tab active" data-post-type="" aria-label="<?php esc_attr_e( 'Todos', 'wp-multi-post-type-blog' ); ?>">
 						<?php esc_html_e( 'Todos', 'wp-multi-post-type-blog' ); ?>
 					</button>
-					<?php foreach ( $post_types as $pt ) : ?>
+					<?php foreach ( $active_post_types as $pt ) : ?>
 						<?php $pt_obj = get_post_type_object( $pt ); ?>
 						<?php if ( $pt_obj ) : ?>
 							<button class="filter-tab" data-post-type="<?php echo esc_attr( $pt ); ?>" aria-label="<?php echo esc_attr( $pt_obj->labels->name ); ?>">

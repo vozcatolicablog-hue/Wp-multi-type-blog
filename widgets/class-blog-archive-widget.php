@@ -61,6 +61,7 @@ class Blog_Archive_Widget extends Blog_Posts_Widget {
 
 		$settings_signature = wp_multipost_blog_sign_settings( $settings );
 		$columns_class = 'premium-blog-widget--columns-' . intval( $settings['columns'] );
+		$layout_type_class = 'premium-blog-widget--layout-' . sanitize_html_class( $settings['layout_type'] );
 		$post_types = $settings['post_types'];
 
 		// Dynamically check which post types have actual posts matching the query parameters
@@ -82,7 +83,7 @@ class Blog_Archive_Widget extends Blog_Posts_Widget {
 		}
 		?>
 		<div id="wp-multipost-blog-<?php echo esc_attr( $widget_id ); ?>" 
-			class="premium-blog-widget premium-blog-archive-widget <?php echo esc_attr( $columns_class ); ?>"
+			class="premium-blog-widget premium-blog-archive-widget <?php echo esc_attr( $columns_class ); ?> <?php echo esc_attr( $layout_type_class ); ?>"
 			data-widget-id="<?php echo esc_attr( $widget_id ); ?>"
 			data-settings="<?php echo esc_attr( wp_json_encode( $settings ) ); ?>"
 			data-settings-signature="<?php echo esc_attr( $settings_signature ); ?>"

@@ -34,6 +34,8 @@ The design is completely revised for premium aesthetics:
 - **List Post Cards**: Hovering on items triggers subtle card translates (`translateY(-3px)`) and shadows.
 - **Read More Animation**: Text links with SVG arrows that shift on hover.
 - **Mobile Stacked Layouts**: Media queries stack horizontal lists into vertical grids below `768px`.
+- **Compact Layout Theme**: An optional layout style select control (`Classic` vs `Compact`). In Compact mode, lists display a small 16:9 thumbnail on the left, smaller blue titles, date and author text with custom icons, and category badges placed in the meta list with tag outline icons. Excerpts and buttons are hidden.
+- **Post Separation Control**: A slider control under List Styles to customize the row gap/separation between each post in list or grid views.
 
 ### 3. AJAX Pagination & Sequential Animations
 In `assets/js/blog-posts-widget.js`, we handle dynamic loading:

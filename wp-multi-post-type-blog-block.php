@@ -187,6 +187,11 @@ function wp_multipost_blog_sanitize_settings( $settings ) {
 	$current_post_id = ! empty( $settings['current_post_id'] ) ? absint( $settings['current_post_id'] ) : 0;
 	$archive_author_id = ! empty( $settings['archive_author_id'] ) ? absint( $settings['archive_author_id'] ) : 0;
 
+	$layout_type = ! empty( $settings['layout_type'] ) ? sanitize_key( $settings['layout_type'] ) : 'classic';
+	if ( ! in_array( $layout_type, array( 'classic', 'compact' ), true ) ) {
+		$layout_type = 'classic';
+	}
+
 	if ( ! in_array( $orderby, wp_multipost_blog_allowed_orderby(), true ) ) {
 		$orderby = 'date';
 	}
@@ -238,6 +243,7 @@ function wp_multipost_blog_sanitize_settings( $settings ) {
 		'columns'              => ! empty( $settings['columns'] ) ? max( 1, min( 3, intval( $settings['columns'] ) ) ) : 1,
 		'pagination'           => $pagination,
 		'archive_author_id'    => $archive_author_id,
+		'layout_type'          => $layout_type,
 	);
 }
 

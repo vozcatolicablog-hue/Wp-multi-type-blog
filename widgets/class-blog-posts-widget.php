@@ -352,6 +352,19 @@ class Blog_Posts_Widget extends Widget_Base {
 			]
 		);
 
+		$this->add_control(
+			'layout_type',
+			[
+				'label'   => esc_html__( 'Layout Type', 'wp-multi-post-type-blog' ),
+				'type'    => Controls_Manager::SELECT,
+				'default' => 'classic',
+				'options' => [
+					'classic' => esc_html__( 'Classic', 'wp-multi-post-type-blog' ),
+					'compact' => esc_html__( 'Compact', 'wp-multi-post-type-blog' ),
+				],
+			]
+		);
+
 		foreach ( array(
 			'show_category' => esc_html__( 'Show Category Badge', 'wp-multi-post-type-blog' ),
 			'show_author'   => esc_html__( 'Show Author', 'wp-multi-post-type-blog' ),
@@ -951,7 +964,8 @@ class Blog_Posts_Widget extends Widget_Base {
 		$post_date    = get_the_date( '', $post_id );
 		$button_text  = ! empty( $settings['read_more_text'] ) ? $settings['read_more_text'] : esc_html__( 'LEER MÁS', 'wp-multi-post-type-blog' );
 		$show_meta    = self::is_enabled( $settings, 'show_author' ) || self::is_enabled( $settings, 'show_date' ) || self::is_enabled( $settings, 'show_views' );
-		
+		$layout_type  = ! empty( $settings['layout_type'] ) ? $settings['layout_type'] : 'classic';
+
 		// Truncate excerpt without breaking multibyte characters.
 		$excerpt_words = isset( $settings['excerpt_words'] ) ? intval( $settings['excerpt_words'] ) : 30;
 		$excerpt       = $excerpt_words > 0 ? wp_trim_words( wp_strip_all_tags( get_the_excerpt( $post ) ), $excerpt_words, '...' ) : '';
@@ -963,7 +977,7 @@ class Blog_Posts_Widget extends Widget_Base {
 				<a href="<?php echo esc_url( $permalink ); ?>">
 					<img class="list-post-item__image" src="<?php echo esc_url( $thumb_url ); ?>" alt="<?php echo esc_attr( $title ); ?>" loading="lazy" />
 				</a>
-				<?php if ( $primary_cat && self::is_enabled( $settings, 'show_category' ) ) : ?>
+				<?php if ( 'compact' !== $layout_type && $primary_cat && self::is_enabled( $settings, 'show_category' ) ) : ?>
 					<span class="list-post-item__badge badge">
 						<a href="<?php echo esc_url( $primary_cat['link'] ); ?>"><?php echo esc_html( $primary_cat['name'] ); ?></a>
 					</span>
@@ -988,13 +1002,19 @@ class Blog_Posts_Widget extends Widget_Base {
 						<?php if ( self::is_enabled( $settings, 'show_author' ) ) : ?>
 							<span class="list-post-item__meta-item list-post-item__meta-author">
 								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="meta-icon"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-								POR <?php echo esc_html( $author_name ); ?>
+								<?php echo ( 'compact' === $layout_type ) ? '' : esc_html__( 'POR ', 'wp-multi-post-type-blog' ); ?><?php echo esc_html( $author_name ); ?>
 							</span>
 						<?php endif; ?>
 						<?php if ( self::is_enabled( $settings, 'show_date' ) ) : ?>
 							<span class="list-post-item__meta-item list-post-item__meta-date">
 								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="meta-icon"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
 								<?php echo esc_html( $post_date ); ?>
+							</span>
+						<?php endif; ?>
+						<?php if ( 'compact' === $layout_type && $primary_cat && self::is_enabled( $settings, 'show_category' ) ) : ?>
+							<span class="list-post-item__meta-item list-post-item__meta-category">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="meta-icon"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+								<a href="<?php echo esc_url( $primary_cat['link'] ); ?>"><?php echo esc_html( $primary_cat['name'] ); ?></a>
 							</span>
 						<?php endif; ?>
 						<?php if ( self::is_enabled( $settings, 'show_views' ) ) : ?>
@@ -1047,9 +1067,10 @@ class Blog_Posts_Widget extends Widget_Base {
 
 		$settings_signature = wp_multipost_blog_sign_settings( $settings );
 		$columns_class = 'premium-blog-widget--columns-' . intval( $settings['columns'] );
+		$layout_type_class = 'premium-blog-widget--layout-' . sanitize_html_class( $settings['layout_type'] );
 		?>
 		<div id="wp-multipost-blog-<?php echo esc_attr( $widget_id ); ?>" 
-			class="premium-blog-widget <?php echo esc_attr( $columns_class ); ?>"
+			class="premium-blog-widget <?php echo esc_attr( $columns_class ); ?> <?php echo esc_attr( $layout_type_class ); ?>"
 			data-widget-id="<?php echo esc_attr( $widget_id ); ?>"
 			data-settings="<?php echo esc_attr( wp_json_encode( $settings ) ); ?>"
 			data-settings-signature="<?php echo esc_attr( $settings_signature ); ?>"

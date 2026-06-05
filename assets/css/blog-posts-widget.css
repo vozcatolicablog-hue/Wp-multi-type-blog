@@ -571,3 +571,89 @@
 	border-color: var(--e-global-color-accent, #2563eb);
 	box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
 }
+
+/* --- Compact Layout Style --- */
+.premium-blog-widget--layout-compact .list-post-item {
+	grid-template-columns: 140px 1fr !important;
+	gap: 20px !important;
+	padding: 12px 0 !important;
+	border-bottom: 1px solid #f1f5f9;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+	transform: none !important;
+	background-color: transparent !important;
+	align-items: center !important;
+}
+
+.premium-blog-widget--layout-compact .list-post-item:hover {
+	transform: none !important;
+	box-shadow: none !important;
+	background-color: transparent !important;
+}
+
+.premium-blog-widget--layout-compact .list-post-item__image-wrapper {
+	aspect-ratio: 16 / 9 !important;
+	border-radius: 8px !important;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+.premium-blog-widget--layout-compact .list-post-item__content {
+	padding-right: 0 !important;
+}
+
+.premium-blog-widget--layout-compact .list-post-item__title {
+	font-size: 16px !important;
+	line-height: 1.35 !important;
+	font-weight: 700 !important;
+	margin: 0 0 6px 0 !important;
+}
+
+.premium-blog-widget--layout-compact .list-post-item__title a {
+	color: #004b87; /* Beautiful blue color from user screenshot */
+}
+
+.premium-blog-widget--layout-compact .list-post-item__title a:hover {
+	color: var(--e-global-color-accent, #2563eb) !important;
+}
+
+.premium-blog-widget--layout-compact .list-post-item__meta {
+	gap: 14px !important;
+	margin-bottom: 0 !important;
+}
+
+.premium-blog-widget--layout-compact .list-post-item__meta-item {
+	font-size: 11px !important;
+	text-transform: none !important; /* Keep natural text casing as shown in image: 'mayo 24, 2026' */
+	font-weight: 500 !important;
+	color: #a87e43 !important; /* Meta text color matching user image orange/brown */
+}
+
+.premium-blog-widget--layout-compact .list-post-item__meta-item a {
+	color: inherit !important;
+}
+
+.premium-blog-widget--layout-compact .list-post-item__meta-item svg {
+	stroke: #a87e43 !important; /* Meta icons stroke */
+	fill: none !important;
+}
+
+.premium-blog-widget--layout-compact .list-post-item__excerpt,
+.premium-blog-widget--layout-compact .list-post-item__button-container {
+	display: none !important;
+}
+
+/* Responsive adjust for mobile */
+@media (max-width: 768px) {
+	.premium-blog-widget--layout-compact .list-post-item {
+		grid-template-columns: 120px 1fr !important;
+		gap: 12px !important;
+		padding: 8px 0 !important;
+		border-bottom: 1px solid #f1f5f9 !important;
+	}
+	.premium-blog-widget--layout-compact .list-post-item__title {
+		font-size: 14px !important;
+	}
+	.premium-blog-widget--layout-compact .list-post-item__meta-item {
+		font-size: 10px !important;
+	}
+}

@@ -25,6 +25,7 @@
 		var maxPages    = parseInt($widget.attr('data-max-pages'), 10) || 1;
 		var currentPage = parseInt($widget.attr('data-current-page'), 10) || 1;
 		var settingsRaw = $widget.attr('data-settings');
+		var settingsSignature = $widget.attr('data-settings-signature');
 		var settings    = {};
 		
 		try {
@@ -85,6 +86,7 @@
 					action: 'wp_multiblog_load_more',
 					nonce: wpMultipostBlogAjax.nonce,
 					page: currentPage + 1,
+					signature: settingsSignature,
 					settings: settings
 				},
 				success: function(response) {

@@ -530,6 +530,18 @@ class Blog_Posts_Widget extends Widget_Base {
 		);
 
 		$this->add_control(
+			'featured_post_type_prefix_hover_color',
+			[
+				'label'     => esc_html__( 'Post Type Prefix Hover Color', 'wp-multi-post-type-blog' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => [
+					'{{WRAPPER}} .featured-post__title a:hover .post-type-prefix' => 'color: {{VALUE}};',
+				],
+			]
+		);
+
+		$this->add_control(
 			'featured_meta_color',
 			[
 				'label'     => esc_html__( 'Meta Text / Icon Color', 'wp-multi-post-type-blog' ),
@@ -633,6 +645,18 @@ class Blog_Posts_Widget extends Widget_Base {
 				'default'   => '',
 				'selectors' => [
 					'{{WRAPPER}} .list-post-item__title .post-type-prefix' => 'color: {{VALUE}};',
+				],
+			]
+		);
+
+		$this->add_control(
+			'list_post_type_prefix_hover_color',
+			[
+				'label'     => esc_html__( 'Post Type Prefix Hover Color', 'wp-multi-post-type-blog' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => [
+					'{{WRAPPER}} .list-post-item__title a:hover .post-type-prefix' => 'color: {{VALUE}};',
 				],
 			]
 		);

@@ -81,7 +81,7 @@ La firma de configuracion evita que un visitante modifique manualmente los setti
 
 ## Changelog
 
-### 1.5.0
+### 2.0.0
 
 - Optimización drástica de rendimiento mediante el almacenamiento en caché de taxonomías, autores y tipos de entrada en transients de WordPress en el panel de Elementor.
 - Solución de rendimiento O(N) en la validación de tipos de entrada activos en el widget Archive mediante caché transients.

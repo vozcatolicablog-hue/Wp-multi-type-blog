@@ -69,7 +69,7 @@ widgets/
 assets/
   css/blog-posts-widget.css
   js/blog-posts-widget.js
-  images/placeholder.png
+  images/placeholder.jpg
 walkthrough.md
 ```
 
@@ -80,6 +80,20 @@ El endpoint AJAX valida nonce, firma de configuracion, post types publicos, taxo
 La firma de configuracion evita que un visitante modifique manualmente los settings del widget en el navegador para forzar consultas distintas a las renderizadas por Elementor.
 
 ## Changelog
+
+### 1.5.0
+
+- Optimización drástica de rendimiento mediante el almacenamiento en caché de taxonomías, autores y tipos de entrada en transients de WordPress en el panel de Elementor.
+- Solución de rendimiento O(N) en la validación de tipos de entrada activos en el widget Archive mediante caché transients.
+- Pre-carga del caché de postmeta (`update_postmeta_cache`) antes de renderizar bucles de posts para evitar múltiples consultas SQL de vistas por post.
+- Reemplazo de animaciones jQuery personalizadas basadas en timers por transiciones CSS aceleradas por hardware.
+- Conversión y compresión de imagen placeholder de 633 KB PNG a 25 KB JPEG de alta calidad.
+- Incorporación de soporte nativo para imágenes adaptables (`srcset` y `sizes`) a través de la función estándar de WordPress `get_the_post_thumbnail`.
+- Refactorización de código duplicado unificando el renderizado de HTML en un método compartido, lo que respeta el principio DRY.
+- Organización del código global en el espacio de nombres `WpMultiPostTypeBlog` y encapsulado en la clase `Utils`.
+- Añadido indicador visual "Has llegado al final" cuando las paginaciones AJAX completan la carga total.
+- Corrección de accesibilidad mediante el diseño de indicadores de foco `:focus-visible` para navegación con teclado (cumplimiento de pautas WCAG 2.4.7).
+- Corrección de seguridad contra inyección de código XSS en mensajes de error/vacíos en frontend.
 
 ### 1.1.0
 

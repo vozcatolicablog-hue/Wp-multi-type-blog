@@ -73,11 +73,17 @@ class Blog_Posts_Widget extends Widget_Base {
 	}
 
 	/**
-	 * Retrieve the list of active public post types.
+	 * Retrieve the list of active public post types with transient caching.
 	 *
 	 * @return array Post types key-value pairs.
 	 */
 	private function get_all_post_types() {
+		$cache_key = 'wpmb_all_post_types';
+		$cached = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return $cached;
+		}
+
 		$post_types = get_post_types(
 			array(
 				'public'             => true,
@@ -93,6 +99,8 @@ class Blog_Posts_Widget extends Widget_Base {
 			}
 			$options[ $post_type->name ] = $post_type->label;
 		}
+
+		set_transient( $cache_key, $options, HOUR_IN_SECONDS );
 		return $options;
 	}
 
@@ -114,11 +122,17 @@ class Blog_Posts_Widget extends Widget_Base {
 	}
 
 	/**
-	 * Retrieve the list of authors/users.
+	 * Retrieve the list of authors/users with transient caching.
 	 *
 	 * @return array Authors key-value pairs.
 	 */
 	private function get_all_authors() {
+		$cache_key = 'wpmb_all_authors';
+		$cached = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return $cached;
+		}
+
 		$users = get_users( array(
 			'who'                 => 'authors',
 			'has_published_posts' => true,
@@ -128,15 +142,23 @@ class Blog_Posts_Widget extends Widget_Base {
 		foreach ( $users as $user ) {
 			$options[ $user->ID ] = $user->display_name;
 		}
+
+		set_transient( $cache_key, $options, HOUR_IN_SECONDS );
 		return $options;
 	}
 
 	/**
-	 * Retrieve all public taxonomy terms.
+	 * Retrieve all public taxonomy terms with transient caching.
 	 *
 	 * @return array Terms key-value pairs grouped by taxonomy.
 	 */
 	private function get_all_taxonomy_terms() {
+		$cache_key = 'wpmb_all_taxonomy_terms';
+		$cached = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return $cached;
+		}
+
 		$taxonomies = get_taxonomies(
 			array(
 				'public'  => true,
@@ -159,6 +181,8 @@ class Blog_Posts_Widget extends Widget_Base {
 				}
 			}
 		}
+
+		set_transient( $cache_key, $options, HOUR_IN_SECONDS );
 		return $options;
 	}
 
@@ -729,7 +753,7 @@ class Blog_Posts_Widget extends Widget_Base {
 				'type'      => Controls_Manager::COLOR,
 				'default'   => '#f1f5f9',
 				'selectors' => [
-					'{{WRAPPER}} .badge' => 'background-color: {{VALUE}};',
+					'{{WRAPPER}} .list-post-item__badge' => 'background-color: {{VALUE}};',
 				],
 			]
 		);
@@ -741,7 +765,7 @@ class Blog_Posts_Widget extends Widget_Base {
 				'type'      => Controls_Manager::COLOR,
 				'default'   => '#64748b',
 				'selectors' => [
-					'{{WRAPPER}} .badge' => 'color: {{VALUE}};',
+					'{{WRAPPER}} .list-post-item__badge' => 'color: {{VALUE}};',
 				],
 			]
 		);
@@ -800,14 +824,14 @@ class Blog_Posts_Widget extends Widget_Base {
 	}
 
 	/**
-	 * Check whether a display option is enabled.
+	 * Check whether a display option is enabled with proper isset checks.
 	 *
 	 * @param array  $settings Sanitized render settings.
 	 * @param string $key      Setting key.
 	 * @return bool
 	 */
 	private static function is_enabled( $settings, $key ) {
-		return empty( $settings[ $key ] ) || 'yes' === $settings[ $key ];
+		return ! isset( $settings[ $key ] ) || 'yes' === $settings[ $key ];
 	}
 
 	/**
@@ -869,10 +893,6 @@ class Blog_Posts_Widget extends Widget_Base {
 		$title        = get_the_title( $post_id );
 		$permalink    = get_permalink( $post_id );
 		$image_size   = ! empty( $settings['featured_image_size'] ) ? $settings['featured_image_size'] : 'full';
-		$thumb_url    = get_the_post_thumbnail_url( $post_id, $image_size );
-		if ( ! $thumb_url ) {
-			$thumb_url = esc_url( WP_MULTIPOST_BLOG_URL . 'assets/images/placeholder.png' );
-		}
 		
 		$primary_cat  = self::get_primary_category( $post_id, $post->post_type );
 		$views_count  = self::get_views_count( $post_id );
@@ -886,7 +906,11 @@ class Blog_Posts_Widget extends Widget_Base {
 		<article class="featured-post">
 			<div class="featured-post__image-wrapper">
 				<a href="<?php echo esc_url( $permalink ); ?>">
-					<img class="featured-post__image" src="<?php echo esc_url( $thumb_url ); ?>" alt="<?php echo esc_attr( $title ); ?>" loading="lazy" />
+					<?php if ( has_post_thumbnail( $post_id ) ) : ?>
+						<?php echo get_the_post_thumbnail( $post_id, $image_size, array( 'class' => 'featured-post__image', 'loading' => 'eager' ) ); ?>
+					<?php else : ?>
+						<img class="featured-post__image" src="<?php echo esc_url( WP_MULTIPOST_BLOG_URL . 'assets/images/placeholder.jpg' ); ?>" alt="<?php echo esc_attr( $title ); ?>" loading="eager" />
+					<?php endif; ?>
 				</a>
 			</div>
 			<div class="featured-post__card">
@@ -914,7 +938,7 @@ class Blog_Posts_Widget extends Widget_Base {
 						<?php if ( self::is_enabled( $settings, 'show_author' ) ) : ?>
 							<span class="featured-post__meta-item featured-post__meta-author">
 								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="meta-icon"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-								POR <?php echo esc_html( $author_name ); ?>
+								<?php echo esc_html__( 'POR ', 'wp-multi-post-type-blog' ); ?><?php echo esc_html( $author_name ); ?>
 							</span>
 						<?php endif; ?>
 						<?php if ( self::is_enabled( $settings, 'show_date' ) ) : ?>
@@ -953,10 +977,6 @@ class Blog_Posts_Widget extends Widget_Base {
 		$title        = get_the_title( $post_id );
 		$permalink    = get_permalink( $post_id );
 		$image_size   = ! empty( $settings['list_image_size'] ) ? $settings['list_image_size'] : 'medium_large';
-		$thumb_url    = get_the_post_thumbnail_url( $post_id, $image_size );
-		if ( ! $thumb_url ) {
-			$thumb_url = esc_url( WP_MULTIPOST_BLOG_URL . 'assets/images/placeholder.png' );
-		}
 
 		$primary_cat  = self::get_primary_category( $post_id, $post->post_type );
 		$views_count  = self::get_views_count( $post_id );
@@ -975,10 +995,14 @@ class Blog_Posts_Widget extends Widget_Base {
 		<article class="list-post-item">
 			<div class="list-post-item__image-wrapper">
 				<a href="<?php echo esc_url( $permalink ); ?>">
-					<img class="list-post-item__image" src="<?php echo esc_url( $thumb_url ); ?>" alt="<?php echo esc_attr( $title ); ?>" loading="lazy" />
+					<?php if ( has_post_thumbnail( $post_id ) ) : ?>
+						<?php echo get_the_post_thumbnail( $post_id, $image_size, array( 'class' => 'list-post-item__image', 'loading' => 'lazy' ) ); ?>
+					<?php else : ?>
+						<img class="list-post-item__image" src="<?php echo esc_url( WP_MULTIPOST_BLOG_URL . 'assets/images/placeholder.jpg' ); ?>" alt="<?php echo esc_attr( $title ); ?>" loading="lazy" />
+					<?php endif; ?>
 				</a>
 				<?php if ( 'compact' !== $layout_type && $primary_cat && self::is_enabled( $settings, 'show_category' ) ) : ?>
-					<span class="list-post-item__badge badge">
+					<span class="list-post-item__badge">
 						<a href="<?php echo esc_url( $primary_cat['link'] ); ?>"><?php echo esc_html( $primary_cat['name'] ); ?></a>
 					</span>
 				<?php endif; ?>
@@ -1043,34 +1067,13 @@ class Blog_Posts_Widget extends Widget_Base {
 	}
 
 	/**
-	 * Render the widget content.
+	 * Render the widget layout HTML (shared between Blog_Posts_Widget and Blog_Archive_Widget).
 	 */
-	protected function render() {
-		$settings = $this->get_settings_for_display();
-		$widget_id = $this->get_id();
-		$page_var  = 'wpmpb_' . $widget_id . '_page';
-
-		$paged = isset( $_GET[ $page_var ] ) ? max( 1, absint( wp_unslash( $_GET[ $page_var ] ) ) ) : 1;
-
-		$settings['current_post_id'] = get_queried_object_id();
-		$settings = wp_multipost_blog_sanitize_settings( $settings );
+	protected function render_widget_html( $widget_id, $settings, $query, $paged, $max_pages, $settings_signature, $columns_class, $layout_type_class, $extra_classes = '', $active_post_types = array() ) {
 		$pagination = $settings['pagination'];
-
-		$query = new \WP_Query( wp_multipost_blog_build_query_args( $settings, $paged ) );
-		$max_pages = wp_multipost_blog_get_max_pages( $query, $settings );
-
-		if ( ! $query->have_posts() ) {
-			echo '<div class="premium-blog-no-posts">' . esc_html__( 'No se encontraron publicaciones.', 'wp-multi-post-type-blog' ) . '</div>';
-			wp_reset_postdata();
-			return;
-		}
-
-		$settings_signature = wp_multipost_blog_sign_settings( $settings );
-		$columns_class = 'premium-blog-widget--columns-' . intval( $settings['columns'] );
-		$layout_type_class = 'premium-blog-widget--layout-' . sanitize_html_class( $settings['layout_type'] );
 		?>
 		<div id="wp-multipost-blog-<?php echo esc_attr( $widget_id ); ?>" 
-			class="premium-blog-widget <?php echo esc_attr( $columns_class ); ?> <?php echo esc_attr( $layout_type_class ); ?>"
+			class="premium-blog-widget <?php echo esc_attr( $extra_classes ); ?> <?php echo esc_attr( $columns_class ); ?> <?php echo esc_attr( $layout_type_class ); ?>"
 			data-widget-id="<?php echo esc_attr( $widget_id ); ?>"
 			data-settings="<?php echo esc_attr( wp_json_encode( $settings ) ); ?>"
 			data-settings-signature="<?php echo esc_attr( $settings_signature ); ?>"
@@ -1078,6 +1081,22 @@ class Blog_Posts_Widget extends Widget_Base {
 			data-max-pages="<?php echo esc_attr( $max_pages ); ?>"
 			data-current-page="<?php echo esc_attr( $paged ); ?>">
 			
+			<?php if ( ! empty( $active_post_types ) && count( $active_post_types ) > 1 ) : ?>
+				<div class="premium-blog-archive__filters">
+					<button class="filter-tab active" data-post-type="" aria-label="<?php esc_attr_e( 'Todos', 'wp-multi-post-type-blog' ); ?>">
+						<?php esc_html_e( 'Todos', 'wp-multi-post-type-blog' ); ?>
+					</button>
+					<?php foreach ( $active_post_types as $pt ) : ?>
+						<?php $pt_obj = get_post_type_object( $pt ); ?>
+						<?php if ( $pt_obj ) : ?>
+							<button class="filter-tab" data-post-type="<?php echo esc_attr( $pt ); ?>" aria-label="<?php echo esc_attr( $pt_obj->labels->name ); ?>">
+								<?php echo esc_html( $pt_obj->labels->name ); ?>
+							</button>
+						<?php endif; ?>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+
 			<div class="premium-blog-widget__container">
 				<?php
 				$count     = 0;
@@ -1105,12 +1124,10 @@ class Blog_Posts_Widget extends Widget_Base {
 				?>
 			</div>
 
-			<?php
-			// Standard numerical pagination
-			?>
-			<div class="premium-blog-widget__pagination numbers-pagination" style="<?php echo ( 'numbers' === $pagination && $max_pages > 1 ) ? '' : 'display: none;'; ?>">
-				<?php
-				if ( 'numbers' === $pagination && $max_pages > 1 ) {
+			<?php if ( 'numbers' === $pagination && $max_pages > 1 ) : ?>
+				<div class="premium-blog-widget__pagination numbers-pagination">
+					<?php
+					$page_var = 'wpmpb_' . $widget_id . '_page';
 					echo paginate_links( array(
 						'base'      => esc_url_raw( add_query_arg( $page_var, '%#%' ) ),
 						'format'    => '',
@@ -1119,14 +1136,11 @@ class Blog_Posts_Widget extends Widget_Base {
 						'prev_text' => '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Anterior',
 						'next_text' => 'Siguiente <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>',
 					) );
-				}
-				?>
-			</div>
+					?>
+				</div>
+			<?php endif; ?>
 
-			<?php
-			// AJAX Load More Button
-			$btn_text = $settings['load_more_text'];
-			?>
+			<?php $btn_text = $settings['load_more_text']; ?>
 			<div class="premium-blog-widget__pagination-ajax ajax-pagination" style="<?php echo ( 'load_more' === $pagination && $max_pages > 1 && $paged < $max_pages ) ? '' : 'display: none;'; ?>">
 				<button class="wp-multipost-blog-load-more-btn" aria-label="<?php echo esc_attr( $btn_text ); ?>">
 					<span class="btn-text"><?php echo esc_html( $btn_text ); ?></span>
@@ -1134,15 +1148,50 @@ class Blog_Posts_Widget extends Widget_Base {
 				</button>
 			</div>
 
-			<?php
-			// Infinite Scroll Loader
-			?>
 			<div class="premium-blog-widget__infinite-trigger infinite-pagination" style="<?php echo ( 'infinite' === $pagination && $max_pages > 1 && $paged < $max_pages ) ? '' : 'display: none;'; ?>">
 				<div class="infinite-loader-spinner"></div>
 			</div>
-			?>
+
+			<div class="premium-blog-widget__no-more" style="display: none; text-align: center; margin-top: 30px; font-weight: 600; color: #64748b;">
+				<?php esc_html_e( 'Has llegado al final.', 'wp-multi-post-type-blog' ); ?>
+			</div>
 		</div>
 		<?php
 		wp_reset_postdata();
+	}
+
+	/**
+	 * Render the widget content.
+	 */
+	protected function render() {
+		$settings = $this->get_settings_for_display();
+		$widget_id = $this->get_id();
+		$page_var  = 'wpmpb_' . $widget_id . '_page';
+
+		$paged = isset( $_GET[ $page_var ] ) ? max( 1, absint( wp_unslash( $_GET[ $page_var ] ) ) ) : 1;
+
+		$settings['current_post_id'] = get_queried_object_id();
+		$settings = \WpMultiPostTypeBlog\Utils::sanitize_settings( $settings );
+		$pagination = $settings['pagination'];
+
+		$query = new \WP_Query( \WpMultiPostTypeBlog\Utils::build_query_args( $settings, $paged ) );
+		$max_pages = \WpMultiPostTypeBlog\Utils::get_max_pages( $query, $settings );
+
+		if ( ! $query->have_posts() ) {
+			echo '<div class="premium-blog-no-posts">' . esc_html__( 'No se encontraron publicaciones.', 'wp-multi-post-type-blog' ) . '</div>';
+			return;
+		}
+
+		// 5.1: Pre-cache postmeta (including views count) before starting loop
+		$post_ids = wp_list_pluck( $query->posts, 'ID' );
+		if ( ! empty( $post_ids ) ) {
+			update_postmeta_cache( $post_ids );
+		}
+
+		$settings_signature = \WpMultiPostTypeBlog\Utils::sign_settings( $settings );
+		$columns_class = 'premium-blog-widget--columns-' . intval( $settings['columns'] );
+		$layout_type_class = 'premium-blog-widget--layout-' . sanitize_html_class( $settings['layout_type'] );
+
+		$this->render_widget_html( $widget_id, $settings, $query, $paged, $max_pages, $settings_signature, $columns_class, $layout_type_class );
 	}
 }

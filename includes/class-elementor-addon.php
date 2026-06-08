@@ -77,8 +77,9 @@ class Elementor_Addon {
 			'wp-multipost-blog-widget-js',
 			'wpMultipostBlogAjax',
 			array(
-				'ajax_url' => admin_url( 'admin-ajax.php' ),
-				'nonce'    => wp_create_nonce( WP_MULTIPOST_BLOG_AJAX_NONCE ),
+				'ajax_url'      => admin_url( 'admin-ajax.php' ),
+				'nonce'         => wp_create_nonce( WP_MULTIPOST_BLOG_AJAX_NONCE ),
+				'no_posts_text' => esc_html__( 'No se encontraron publicaciones.', 'wp-multi-post-type-blog' ),
 			)
 		);
 	}
@@ -87,11 +88,6 @@ class Elementor_Addon {
 	 * Enqueue assets in the Elementor Editor (for live previewing to work nicely).
 	 */
 	public function enqueue_editor_assets() {
-		wp_enqueue_style(
-			'wp-multipost-blog-widget-css',
-			WP_MULTIPOST_BLOG_URL . 'assets/css/blog-posts-widget.css',
-			array(),
-			WP_MULTIPOST_BLOG_VERSION
-		);
+		wp_enqueue_style( 'wp-multipost-blog-widget-css' );
 	}
 }

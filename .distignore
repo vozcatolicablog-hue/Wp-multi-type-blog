@@ -1,0 +1,16 @@
+.git/
+.distignore
+.gitignore
+walkthrough.md
+Wp-multi-type-error.md
+instructions.md
+instructions-wp-analisis.md
+readme.txt
+tests/
+phpunit.xml
+package.json
+package-lock.json
+node_modules/
+composer.json
+composer.lock
+vendor/

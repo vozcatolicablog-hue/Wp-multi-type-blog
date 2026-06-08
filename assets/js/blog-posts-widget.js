@@ -38,10 +38,11 @@
 		var $list = $widget.find('.premium-blog-widget__list');
 		var isLoading = false;
 		var observer;
+		var $btn, $trigger; // 2.2: Declared in outer scope to be safely available in inner scopes
 
 		// 1. AJAX Load More Button Mode
 		if (pagination === 'load_more') {
-			var $btn = $widget.find('.wp-multipost-blog-load-more-btn');
+			$btn = $widget.find('.wp-multipost-blog-load-more-btn');
 			$btn.on('click', function(e) {
 				e.preventDefault();
 				if (isLoading || currentPage >= maxPages) {
@@ -53,7 +54,7 @@
 
 		// 2. AJAX Infinite Scroll Mode
 		if (pagination === 'infinite') {
-			var $trigger = $widget.find('.premium-blog-widget__infinite-trigger');
+			$trigger = $widget.find('.premium-blog-widget__infinite-trigger');
 			if ($trigger.length && 'IntersectionObserver' in window) {
 				observer = new IntersectionObserver(function(entries) {
 					if (entries[0].isIntersecting) {
@@ -62,7 +63,7 @@
 						}
 					}
 				}, { 
-					rootMargin: '100px 0px 300px 0px',
+					rootMargin: '0px 0px 150px 0px', // 7.2: Adjusted to be less aggressive and reduce duplicate requests
 					threshold: 0.1 
 				});
 				observer.observe($trigger[0]);
@@ -88,6 +89,14 @@
 			currentPage = 0;
 			maxPages = 1;
 			
+			// 7.3: Fade out numerical pagination when filter tab is clicked
+			if (pagination === 'numbers') {
+				$widget.find('.numbers-pagination').fadeOut(200);
+			}
+
+			// Hide any existing "No more posts" message when changing filters
+			$widget.find('.premium-blog-widget__no-more').hide();
+			
 			$list.fadeOut(200, function() {
 				$list.empty().show();
 				loadMorePosts(true); // reset load
@@ -103,10 +112,10 @@
 			isLoading = true;
 			var nextPage = isReset ? 1 : (currentPage + 1);
 
-			if (pagination === 'load_more' && $btn) {
+			if (pagination === 'load_more' && $btn && $btn.length) {
 				$btn.addClass('is-loading');
 				$widget.find('.premium-blog-widget__pagination-ajax').show();
-			} else if (pagination === 'infinite' && $trigger) {
+			} else if (pagination === 'infinite' && $trigger && $trigger.length) {
 				$widget.find('.premium-blog-widget__infinite-trigger').show();
 			}
 
@@ -134,30 +143,31 @@
 						if (response.data.html) {
 							var $newElements = $(response.data.html);
 							
-							// Setup initial states for smooth fade-in
-							$newElements.css({ opacity: 0, transform: 'translateY(15px)' });
+							// 5.4: Hardware-accelerated CSS Transitions instead of expensive jQuery animation step callbacks
+							$newElements.css({ 
+								opacity: 0, 
+								transform: 'translateY(15px)',
+								transition: 'opacity 500ms ease, transform 500ms ease'
+							});
 							$list.append($newElements);
 							
 							// Staggered sequential entry animation
 							$newElements.each(function(index, el) {
-								$(el).delay(index * 120).animate({
-									opacity: 1
-								}, {
-									duration: 500,
-									step: function(now, fx) {
-										if (fx.prop === 'opacity') {
-											$(el).css('transform', 'translateY(' + (15 - now * 15) + 'px)');
-										}
-									}
-								});
+								setTimeout(function() {
+									$(el).css({
+										opacity: 1,
+										transform: 'translateY(0)'
+									});
+								}, index * 120);
 							});
 
 							currentPage = nextPage;
 							$widget.attr('data-current-page', currentPage);
 						} else if (isReset) {
-							// No posts found
-							var noPostsText = settings.no_posts_text || 'No se encontraron publicaciones.';
-							$list.html('<div class="premium-blog-no-posts">' + noPostsText + '</div>');
+							// 3.3: Use jQuery .text() to prevent potential XSS injection of dynamic server strings
+							var noPostsText = settings.no_posts_text || wpMultipostBlogAjax.no_posts_text || 'No se encontraron publicaciones.';
+							var $noPostsDiv = $('<div>').addClass('premium-blog-no-posts').text(noPostsText);
+							$list.html($noPostsDiv);
 						}
 
 						updateLoaderVisibility();
@@ -171,7 +181,7 @@
 				},
 				complete: function() {
 					isLoading = false;
-					if (pagination === 'load_more' && $btn) {
+					if (pagination === 'load_more' && $btn && $btn.length) {
 						$btn.removeClass('is-loading');
 					}
 				}
@@ -183,18 +193,26 @@
 		 */
 		function updateLoaderVisibility() {
 			if (currentPage >= maxPages || maxPages <= 1) {
-				if (pagination === 'load_more' && $btn) {
+				if (pagination === 'load_more' && $btn && $btn.length) {
 					$widget.find('.premium-blog-widget__pagination-ajax').fadeOut(400);
-				} else if (pagination === 'infinite' && $trigger) {
+					if (maxPages > 1) {
+						$widget.find('.premium-blog-widget__no-more').fadeIn(400); // 7.1: Show end message
+					}
+				} else if (pagination === 'infinite' && $trigger && $trigger.length) {
 					if (observer) {
 						observer.disconnect();
 					}
 					$widget.find('.premium-blog-widget__infinite-trigger').fadeOut(400);
+					if (maxPages > 1) {
+						$widget.find('.premium-blog-widget__no-more').fadeIn(400); // 7.1: Show end message
+					}
 				}
 			} else {
-				if (pagination === 'load_more' && $btn) {
+				$widget.find('.premium-blog-widget__no-more').hide();
+
+				if (pagination === 'load_more' && $btn && $btn.length) {
 					$widget.find('.premium-blog-widget__pagination-ajax').fadeIn(400);
-				} else if (pagination === 'infinite' && $trigger) {
+				} else if (pagination === 'infinite' && $trigger && $trigger.length) {
 					$widget.find('.premium-blog-widget__infinite-trigger').fadeIn(400);
 					if (observer && $trigger.length) {
 						observer.disconnect();

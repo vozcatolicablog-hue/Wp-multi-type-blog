@@ -354,6 +354,11 @@
 	outline: none;
 }
 
+.wp-multipost-blog-load-more-btn:focus-visible {
+	outline: 2px solid var(--e-global-color-accent, #2563eb);
+	outline-offset: 2px;
+}
+
 .wp-multipost-blog-load-more-btn:hover {
 	background-color: #1e293b;
 	transform: translateY(-2px);
@@ -560,6 +565,11 @@
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 
+.premium-blog-archive__filters .filter-tab:focus-visible {
+	outline: 2px solid var(--e-global-color-accent, #2563eb);
+	outline-offset: 2px;
+}
+
 .premium-blog-archive__filters .filter-tab:hover {
 	border-color: var(--e-global-color-accent, #2563eb);
 	color: var(--e-global-color-accent, #2563eb);
@@ -574,86 +584,86 @@
 
 /* --- Compact Layout Style --- */
 .premium-blog-widget--layout-compact .list-post-item {
-	grid-template-columns: 140px 1fr !important;
-	gap: 20px !important;
-	padding: 12px 0 !important;
+	grid-template-columns: 140px 1fr;
+	gap: 20px;
+	padding: 12px 0;
 	border-bottom: 1px solid #f1f5f9;
-	border-radius: 0 !important;
-	box-shadow: none !important;
-	transform: none !important;
-	background-color: transparent !important;
-	align-items: center !important;
+	border-radius: 0;
+	box-shadow: none;
+	transform: none;
+	background-color: transparent;
+	align-items: center;
 }
 
 .premium-blog-widget--layout-compact .list-post-item:hover {
-	transform: none !important;
-	box-shadow: none !important;
-	background-color: transparent !important;
+	transform: none;
+	box-shadow: none;
+	background-color: transparent;
 }
 
 .premium-blog-widget--layout-compact .list-post-item__image-wrapper {
-	aspect-ratio: 16 / 9 !important;
-	border-radius: 8px !important;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+	aspect-ratio: 16 / 9;
+	border-radius: 8px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .premium-blog-widget--layout-compact .list-post-item__content {
-	padding-right: 0 !important;
+	padding-right: 0;
 }
 
 .premium-blog-widget--layout-compact .list-post-item__title {
-	font-size: 16px !important;
-	line-height: 1.35 !important;
-	font-weight: 700 !important;
-	margin: 0 0 6px 0 !important;
+	font-size: 16px;
+	line-height: 1.35;
+	font-weight: 700;
+	margin: 0 0 6px 0;
 }
 
 .premium-blog-widget--layout-compact .list-post-item__title a {
-	color: #004b87; /* Beautiful blue color from user screenshot */
+	color: var(--e-global-color-primary, #004b87); /* Beautiful blue color from user screenshot, fallback to #004b87 */
 }
 
 .premium-blog-widget--layout-compact .list-post-item__title a:hover {
-	color: var(--e-global-color-accent, #2563eb) !important;
+	color: var(--e-global-color-accent, #2563eb);
 }
 
 .premium-blog-widget--layout-compact .list-post-item__meta {
-	gap: 14px !important;
-	margin-bottom: 0 !important;
+	gap: 14px;
+	margin-bottom: 0;
 }
 
 .premium-blog-widget--layout-compact .list-post-item__meta-item {
-	font-size: 11px !important;
-	text-transform: none !important; /* Keep natural text casing as shown in image: 'mayo 24, 2026' */
-	font-weight: 500 !important;
-	color: #a87e43 !important; /* Meta text color matching user image orange/brown */
+	font-size: 11px;
+	text-transform: none; /* Keep natural text casing as shown in image: 'mayo 24, 2026' */
+	font-weight: 500;
+	color: #a87e43; /* Meta text color matching user image orange/brown */
 }
 
 .premium-blog-widget--layout-compact .list-post-item__meta-item a {
-	color: inherit !important;
+	color: inherit;
 }
 
 .premium-blog-widget--layout-compact .list-post-item__meta-item svg {
-	stroke: #a87e43 !important; /* Meta icons stroke */
-	fill: none !important;
+	stroke: #a87e43; /* Meta icons stroke */
+	fill: none;
 }
 
 .premium-blog-widget--layout-compact .list-post-item__excerpt,
 .premium-blog-widget--layout-compact .list-post-item__button-container {
-	display: none !important;
+	display: none;
 }
 
 /* Responsive adjust for mobile */
 @media (max-width: 768px) {
 	.premium-blog-widget--layout-compact .list-post-item {
-		grid-template-columns: 120px 1fr !important;
-		gap: 12px !important;
-		padding: 8px 0 !important;
-		border-bottom: 1px solid #f1f5f9 !important;
+		grid-template-columns: 120px 1fr;
+		gap: 12px;
+		padding: 8px 0;
+		border-bottom: 1px solid #f1f5f9;
 	}
 	.premium-blog-widget--layout-compact .list-post-item__title {
-		font-size: 14px !important;
+		font-size: 14px;
 	}
 	.premium-blog-widget--layout-compact .list-post-item__meta-item {
-		font-size: 10px !important;
+		font-size: 10px;
 	}
 }

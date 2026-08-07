@@ -1,8 +1,14 @@
 .git/
+.github/
+.claude/
 .distignore
 .gitignore
+000 Versiones/
+tools/
 walkthrough.md
 Wp-multi-type-error.md
+Mejoras17-06.md
+prompt-vistas.md
 instructions.md
 instructions-wp-analisis.md
 readme.txt

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WP Multi-Post Type Blog Block for Elementor
  * Description: Un bloque personalizado de Elementor que permite mostrar posts de múltiples post types con filtros de taxonomía, autores, paginación avanzada (AJAX Cargar Más, Scroll Infinito) y un diseño premium mobile-friendly.
- * Version: 2.0.0
+ * Version: 2.5.0
  * Author: Voz Catolica
  * Text Domain: wp-multi-post-type-blog
  * Requires Plugins: elementor
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'WP_MULTIPOST_BLOG_VERSION', '2.0.0' );
+define( 'WP_MULTIPOST_BLOG_VERSION', '2.5.0' );
 define( 'WP_MULTIPOST_BLOG_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WP_MULTIPOST_BLOG_URL', plugin_dir_url( __FILE__ ) );
 define( 'WP_MULTIPOST_BLOG_AJAX_NONCE', 'wp_multipost_blog_ajax_nonce' );
@@ -41,6 +41,13 @@ function wp_multipost_blog_missing_elementor_notice() {
  */
 function wp_multipost_blog_init() {
 	load_plugin_textdomain( 'wp-multi-post-type-blog', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+
+	// Loaded before the Elementor check: the fallback image lookup is used by the AJAX
+	// handler and the settings screen should exist even if Elementor is missing.
+	require_once WP_MULTIPOST_BLOG_PATH . 'includes/class-admin-settings.php';
+	if ( is_admin() ) {
+		Admin_Settings::get_instance();
+	}
 
 	if ( ! did_action( 'elementor/loaded' ) ) {
 		add_action( 'admin_notices', __NAMESPACE__ . '\wp_multipost_blog_missing_elementor_notice' );
@@ -70,7 +77,54 @@ class Utils {
 			return array();
 		}
 
+		// Drop nested arrays/objects before handing values to scalar sanitizers.
+		$value = array_filter( $value, 'is_scalar' );
+
 		return array_values( array_filter( array_map( $callback, $value ) ) );
+	}
+
+	/**
+	 * Read a scalar setting, discarding arrays/objects coming from a tampered payload.
+	 *
+	 * @param array  $settings Raw settings.
+	 * @param string $key      Setting key.
+	 * @param mixed  $default  Value returned when the key is missing or not scalar.
+	 * @return mixed
+	 */
+	public static function scalar_value( $settings, $key, $default = '' ) {
+		if ( ! isset( $settings[ $key ] ) || ! is_scalar( $settings[ $key ] ) ) {
+			return $default;
+		}
+
+		return $settings[ $key ];
+	}
+
+	/**
+	 * Read a text setting, falling back to a default when empty.
+	 *
+	 * @param array  $settings Raw settings.
+	 * @param string $key      Setting key.
+	 * @param string $default  Fallback value.
+	 * @return string
+	 */
+	public static function text_or_default( $settings, $key, $default ) {
+		$value = sanitize_text_field( (string) self::scalar_value( $settings, $key, '' ) );
+
+		return '' !== $value ? $value : $default;
+	}
+
+	/**
+	 * Read a key-like setting, falling back to a default when empty.
+	 *
+	 * @param array  $settings Raw settings.
+	 * @param string $key      Setting key.
+	 * @param string $default  Fallback value.
+	 * @return string
+	 */
+	public static function key_or_default( $settings, $key, $default ) {
+		$value = sanitize_key( (string) self::scalar_value( $settings, $key, '' ) );
+
+		return '' !== $value ? $value : $default;
 	}
 
 	/**
@@ -181,24 +235,33 @@ class Utils {
 		$post_types     = self::validate_post_types( $post_types );
 		$authors        = ! empty( $settings['authors'] ) ? self::sanitize_array( (array) $settings['authors'], 'absint' ) : array();
 		$terms          = ! empty( $settings['terms'] ) ? self::sanitize_array( (array) $settings['terms'], 'sanitize_text_field' ) : array();
-		$orderby        = ! empty( $settings['orderby'] ) ? sanitize_key( $settings['orderby'] ) : 'date';
-		$order          = ! empty( $settings['order'] ) ? strtoupper( sanitize_key( $settings['order'] ) ) : 'DESC';
-		$pagination     = ! empty( $settings['pagination'] ) ? sanitize_key( $settings['pagination'] ) : 'none';
-		$tax_relation   = ! empty( $settings['tax_relation'] ) ? strtoupper( sanitize_key( $settings['tax_relation'] ) ) : 'AND';
-		$posts_per_page = ! empty( $settings['posts_per_page'] ) ? intval( $settings['posts_per_page'] ) : 5;
-		$offset         = ! empty( $settings['offset'] ) ? intval( $settings['offset'] ) : 0;
+		$orderby        = sanitize_key( self::scalar_value( $settings, 'orderby', 'date' ) );
+		$order          = strtoupper( sanitize_key( self::scalar_value( $settings, 'order', 'DESC' ) ) );
+		$pagination     = sanitize_key( self::scalar_value( $settings, 'pagination', 'none' ) );
+		$tax_relation   = strtoupper( sanitize_key( self::scalar_value( $settings, 'tax_relation', 'AND' ) ) );
+		$posts_per_page = intval( self::scalar_value( $settings, 'posts_per_page', 5 ) );
+		$posts_per_page = $posts_per_page > 0 ? $posts_per_page : 5;
+		$offset         = intval( self::scalar_value( $settings, 'offset', 0 ) );
 		if ( ! empty( $settings['exclude_ids'] ) && is_array( $settings['exclude_ids'] ) ) {
 			$exclude_ids = self::sanitize_array( $settings['exclude_ids'], 'absint' );
 		} else {
-			$exclude_ids = ! empty( $settings['exclude_ids'] ) ? self::sanitize_array( preg_split( '/[\s,]+/', (string) $settings['exclude_ids'] ), 'absint' ) : array();
+			$exclude_ids_raw = (string) self::scalar_value( $settings, 'exclude_ids', '' );
+			$exclude_ids     = '' !== $exclude_ids_raw ? self::sanitize_array( preg_split( '/[\s,]+/', $exclude_ids_raw ), 'absint' ) : array();
 		}
 
-		$current_post_id = ! empty( $settings['current_post_id'] ) ? absint( $settings['current_post_id'] ) : 0;
-		$archive_author_id = ! empty( $settings['archive_author_id'] ) ? absint( $settings['archive_author_id'] ) : 0;
+		$current_post_id = absint( self::scalar_value( $settings, 'current_post_id', 0 ) );
+		$archive_author_id = absint( self::scalar_value( $settings, 'archive_author_id', 0 ) );
 
-		$layout_type = ! empty( $settings['layout_type'] ) ? sanitize_key( $settings['layout_type'] ) : 'classic';
+		$layout_type = sanitize_key( self::scalar_value( $settings, 'layout_type', 'classic' ) );
 		if ( ! in_array( $layout_type, array( 'classic', 'compact' ), true ) ) {
 			$layout_type = 'classic';
+		}
+
+		// Last step of the image chain, reached only when the post has no featured image
+		// and its post type has no fallback image configured.
+		$image_fallback = sanitize_key( self::scalar_value( $settings, 'image_fallback', 'hide' ) );
+		if ( ! in_array( $image_fallback, array( 'hide', 'placeholder' ), true ) ) {
+			$image_fallback = 'hide';
 		}
 
 		if ( ! in_array( $orderby, self::allowed_orderby(), true ) ) {
@@ -244,16 +307,172 @@ class Utils {
 			'show_views'           => self::sanitize_switch( $settings, 'show_views', 'yes' ),
 			'show_excerpt'         => self::sanitize_switch( $settings, 'show_excerpt', 'yes' ),
 			'show_category'        => self::sanitize_switch( $settings, 'show_category', 'yes' ),
-			'excerpt_words'        => ! empty( $settings['excerpt_words'] ) ? max( 0, min( 80, intval( $settings['excerpt_words'] ) ) ) : 30,
-			'read_more_text'       => ! empty( $settings['read_more_text'] ) ? sanitize_text_field( $settings['read_more_text'] ) : __( 'LEER MÁS', 'wp-multi-post-type-blog' ),
-			'load_more_text'       => ! empty( $settings['load_more_text'] ) ? sanitize_text_field( $settings['load_more_text'] ) : __( 'Cargar Más', 'wp-multi-post-type-blog' ),
-			'featured_image_size'  => ! empty( $settings['featured_image_size'] ) ? sanitize_key( $settings['featured_image_size'] ) : 'full',
-			'list_image_size'      => ! empty( $settings['list_image_size'] ) ? sanitize_key( $settings['list_image_size'] ) : 'medium_large',
-			'columns'              => ! empty( $settings['columns'] ) ? max( 1, min( 3, intval( $settings['columns'] ) ) ) : 1,
+			'excerpt_words'        => max( 0, min( 80, intval( self::scalar_value( $settings, 'excerpt_words', 30 ) ) ) ),
+			'read_more_text'       => self::text_or_default( $settings, 'read_more_text', __( 'LEER MÁS', 'wp-multi-post-type-blog' ) ),
+			'load_more_text'       => self::text_or_default( $settings, 'load_more_text', __( 'Cargar Más', 'wp-multi-post-type-blog' ) ),
+			'featured_image_size'  => self::key_or_default( $settings, 'featured_image_size', 'full' ),
+			'list_image_size'      => self::key_or_default( $settings, 'list_image_size', 'medium_large' ),
+			'featured_title_tag'   => self::heading_tag( $settings, 'featured_title_tag', 'h2' ),
+			'list_title_tag'       => self::heading_tag( $settings, 'list_title_tag', 'h3' ),
+			'hide_featured_duplicates' => self::sanitize_switch( $settings, 'hide_featured_duplicates', 'yes' ),
+			'category_level'       => self::category_level( $settings ),
+			'columns'              => max( 1, min( 3, intval( self::scalar_value( $settings, 'columns', 1 ) ) ) ),
 			'pagination'           => $pagination,
 			'archive_author_id'    => $archive_author_id,
 			'layout_type'          => $layout_type,
+			'image_fallback'       => $image_fallback,
 		);
+	}
+
+	/**
+	 * Which level of a hierarchical taxonomy the category badge should show.
+	 *
+	 * @param array $settings Sanitized settings.
+	 * @return string 'top' or 'deepest'.
+	 */
+	public static function category_level( $settings ) {
+		$level = sanitize_key( self::scalar_value( $settings, 'category_level', 'top' ) );
+
+		return in_array( $level, array( 'top', 'deepest' ), true ) ? $level : 'top';
+	}
+
+	/**
+	 * Posts already rendered as the featured item, for the current request.
+	 *
+	 * @var array
+	 */
+	private static $featured_ids = array();
+
+	/**
+	 * Record a post as having been rendered in the featured slot.
+	 *
+	 * @param int $post_id Post ID.
+	 */
+	public static function register_featured_id( $post_id ) {
+		$post_id = absint( $post_id );
+
+		if ( $post_id && ! in_array( $post_id, self::$featured_ids, true ) ) {
+			self::$featured_ids[] = $post_id;
+		}
+	}
+
+	/**
+	 * Posts already used as the featured item earlier in the page.
+	 *
+	 * @return array
+	 */
+	public static function rendered_featured_ids() {
+		return self::$featured_ids;
+	}
+
+	/**
+	 * Exclude posts already featured by a widget rendered earlier in the page.
+	 *
+	 * Elementor renders widgets in document order, so by the time a widget builds
+	 * its query every widget above it has already registered its featured post.
+	 *
+	 * The IDs are folded into 'exclude_ids' rather than applied at query time
+	 * because the settings array is what gets signed and handed to the browser:
+	 * doing it here is what makes the exclusion survive into the "load more"
+	 * AJAX request, which runs with an empty registry.
+	 *
+	 * @param array $settings Sanitized settings.
+	 * @return array Settings with the exclusions merged in.
+	 */
+	public static function apply_featured_exclusions( $settings ) {
+		if ( empty( $settings['hide_featured_duplicates'] ) || 'yes' !== $settings['hide_featured_duplicates'] ) {
+			return $settings;
+		}
+
+		$already = self::rendered_featured_ids();
+		if ( empty( $already ) ) {
+			return $settings;
+		}
+
+		$exclude             = isset( $settings['exclude_ids'] ) && is_array( $settings['exclude_ids'] ) ? $settings['exclude_ids'] : array();
+		$settings['exclude_ids'] = array_values( array_unique( array_merge( $exclude, $already ) ) );
+
+		return $settings;
+	}
+
+	/**
+	 * Heading levels a post title is allowed to use.
+	 *
+	 * The tag is interpolated straight into the markup, so the whitelist is what
+	 * keeps a tampered AJAX payload from injecting an arbitrary element.
+	 *
+	 * @return array
+	 */
+	public static function allowed_heading_tags() {
+		return array( 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' );
+	}
+
+	/**
+	 * Read a heading level setting, falling back to the default when unknown.
+	 *
+	 * @param array  $settings Raw settings.
+	 * @param string $key      Setting key.
+	 * @param string $default  Fallback tag.
+	 * @return string
+	 */
+	public static function heading_tag( $settings, $key, $default ) {
+		$tag = strtolower( sanitize_key( self::scalar_value( $settings, $key, $default ) ) );
+
+		return in_array( $tag, self::allowed_heading_tags(), true ) ? $tag : $default;
+	}
+
+	/**
+	 * Option name holding the incremental cache version.
+	 */
+	const CACHE_VERSION_OPTION = 'wpmb_cache_version';
+
+	/**
+	 * Get the current cache version used to namespace every plugin transient.
+	 *
+	 * @return int
+	 */
+	public static function cache_version() {
+		$version = (int) get_option( self::CACHE_VERSION_OPTION, 0 );
+
+		if ( $version < 1 ) {
+			$version = 1;
+			update_option( self::CACHE_VERSION_OPTION, $version, true );
+		}
+
+		return $version;
+	}
+
+	/**
+	 * Build a versioned transient key.
+	 *
+	 * @param string $suffix Key suffix.
+	 * @return string
+	 */
+	public static function cache_key( $suffix ) {
+		return 'wpmb_' . self::cache_version() . '_' . $suffix;
+	}
+
+	/**
+	 * Whether the cache was already invalidated during this request.
+	 *
+	 * @var bool
+	 */
+	private static $cache_flushed = false;
+
+	/**
+	 * Invalidate every plugin transient by bumping the cache version.
+	 *
+	 * Stale entries expire on their own, so no table-wide DELETE is needed and the
+	 * invalidation also works on installs with a persistent object cache. A single
+	 * bump per request is enough, which keeps bulk imports cheap.
+	 */
+	public static function flush_cache() {
+		if ( self::$cache_flushed ) {
+			return;
+		}
+
+		self::$cache_flushed = true;
+		update_option( self::CACHE_VERSION_OPTION, self::cache_version() + 1, true );
 	}
 
 	/**
@@ -290,12 +509,12 @@ class Utils {
 			$query_args['paged'] = $paged;
 		}
 
-		if ( ! empty( $settings['authors'] ) ) {
-			$query_args['author__in'] = $settings['authors'];
-		}
-
+		// An author archive pins the query to that author; combining it with the manual
+		// author filter would AND both clauses and could yield an always-empty result.
 		if ( ! empty( $settings['archive_author_id'] ) ) {
 			$query_args['author'] = $settings['archive_author_id'];
+		} elseif ( ! empty( $settings['authors'] ) ) {
+			$query_args['author__in'] = $settings['authors'];
 		}
 
 		if ( ! empty( $settings['exclude_ids'] ) ) {
@@ -374,10 +593,15 @@ function wp_multipost_blog_load_more_handler() {
 	$html      = '';
 
 	if ( $query->have_posts() ) {
-		// 5.1: Pre-cache postmeta (including views meta) to prevent extra queries in AJAX loops
+		// 5.1: Pre-cache postmeta to prevent extra queries in AJAX loops
 		$post_ids = wp_list_pluck( $query->posts, 'ID' );
 		if ( ! empty( $post_ids ) ) {
 			update_postmeta_cache( $post_ids );
+
+			// Views live in their own tables, so they need a separate batch query.
+			if ( 'yes' === $settings['show_views'] ) {
+				\WpMultiPostTypeBlog\Widgets\Blog_Posts_Widget::prime_views_cache( $query->posts );
+			}
 		}
 
 		while ( $query->have_posts() ) {
@@ -404,13 +628,33 @@ add_action( 'wp_ajax_wp_multiblog_load_more', __NAMESPACE__ . '\wp_multipost_blo
 add_action( 'wp_ajax_nopriv_wp_multiblog_load_more', __NAMESPACE__ . '\wp_multipost_blog_load_more_handler' );
 
 /**
- * Clear all cache transients starting with wpmb_.
+ * Invalidate every plugin transient.
  */
 function wp_multipost_blog_clear_all_transients() {
-	global $wpdb;
-	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_wpmb_%' OR option_name LIKE '_transient_timeout_wpmb_%'" );
+	Utils::flush_cache();
 }
-add_action( 'save_post', __NAMESPACE__ . '\wp_multipost_blog_clear_all_transients' );
+
+/**
+ * Invalidate caches on save, ignoring revisions, autosaves and auto-drafts.
+ *
+ * Note: this guard is only for 'save_post'. On 'deleted_post' the row is already gone,
+ * so get_post() would return null and the flush must run unconditionally.
+ *
+ * @param int $post_id Post ID.
+ */
+function wp_multipost_blog_clear_transients_on_save( $post_id ) {
+	if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
+		return;
+	}
+
+	$post = get_post( $post_id );
+	if ( ! $post || 'auto-draft' === $post->post_status ) {
+		return;
+	}
+
+	Utils::flush_cache();
+}
+add_action( 'save_post', __NAMESPACE__ . '\wp_multipost_blog_clear_transients_on_save' );
 add_action( 'deleted_post', __NAMESPACE__ . '\wp_multipost_blog_clear_all_transients' );
 add_action( 'created_term', __NAMESPACE__ . '\wp_multipost_blog_clear_all_transients' );
 add_action( 'edited_term', __NAMESPACE__ . '\wp_multipost_blog_clear_all_transients' );

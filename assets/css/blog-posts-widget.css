@@ -142,6 +142,17 @@
 	gap: 32px;
 }
 
+/* No featured post above the list: drop the gap meant to clear the overlapping card. */
+.premium-blog-widget__container > .premium-blog-widget__list:first-child {
+	margin-top: 0;
+}
+
+/* An empty list container must not add vertical space of its own. */
+.premium-blog-widget__list:empty {
+	margin-top: 0;
+	gap: 0;
+}
+
 .premium-blog-widget--columns-2 .premium-blog-widget__list,
 .premium-blog-widget--columns-3 .premium-blog-widget__list {
 	display: grid;
@@ -665,5 +676,118 @@
 	}
 	.premium-blog-widget--layout-compact .list-post-item__meta-item {
 		font-size: 10px;
+	}
+}
+
+/* --- Posts sin imagen destacada --- */
+
+/*
+ * Imagen de respaldo por tipo de contenido: se contiene y se centra en vez de
+ * recortarse, porque suele ser un icono y no una fotografia.
+ */
+.list-post-item__image-wrapper--icon,
+.featured-post__image-wrapper--icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: #f1f5f9;
+}
+
+.list-post-item__image-wrapper--icon > a,
+.featured-post__image-wrapper--icon > a {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+}
+
+.list-post-item__image-wrapper--icon .list-post-item__image,
+.featured-post__image-wrapper--icon .featured-post__image {
+	width: auto !important;
+	height: auto !important;
+	max-width: 55%;
+	max-height: 55%;
+	object-fit: contain !important;
+}
+
+/*
+ * Imagen tomada de un campo personalizado (portada de libro, ficha de descarga).
+ * Suele ser vertical, asi que se muestra entera y centrada sobre un fondo neutro
+ * en vez de recortarse al marco apaisado de la tarjeta, que cortaria el titulo.
+ */
+.list-post-item__image-wrapper--cover,
+.featured-post__image-wrapper--cover {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--wpmb-cover-bg, linear-gradient(180deg, #f6f1e9 0%, #ece5d8 100%));
+}
+
+.list-post-item__image-wrapper--cover > a,
+.featured-post__image-wrapper--cover > a {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	padding: 12px 0;
+	box-sizing: border-box;
+}
+
+.list-post-item__image-wrapper--cover .list-post-item__image,
+.featured-post__image-wrapper--cover .featured-post__image {
+	width: auto !important;
+	height: 100% !important;
+	max-width: 100%;
+	object-fit: contain !important;
+	border-radius: 3px;
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+}
+
+/* Un icono no debe hacer zoom al pasar el cursor: delata que no es una foto. */
+.list-post-item:hover .list-post-item__image-wrapper--icon .list-post-item__image,
+.featured-post:hover .featured-post__image-wrapper--icon .featured-post__image {
+	transform: none;
+}
+
+.featured-post__image-wrapper--icon {
+	height: 300px;
+}
+
+/* Sin imagen: el texto ocupa todo el ancho de la fila. */
+.list-post-item--no-image,
+.premium-blog-widget--layout-compact .list-post-item--no-image {
+	grid-template-columns: 1fr;
+}
+
+/* Sin contenedor de imagen sobre el que superponerse, el badge pasa a ser inline. */
+.list-post-item__badge--inline {
+	position: static;
+	align-self: flex-start;
+	margin-bottom: 10px;
+	box-shadow: none;
+}
+
+/* Destacado sin imagen: la tarjeta deja de flotar sobre una imagen inexistente. */
+.featured-post--no-image {
+	min-height: 0;
+	margin-bottom: 32px;
+}
+
+.featured-post--no-image .featured-post__card {
+	position: static;
+	left: auto;
+	right: auto;
+	bottom: auto;
+}
+
+@media (max-width: 768px) {
+	.featured-post--no-image {
+		margin-bottom: 32px;
+	}
+
+	.featured-post__image-wrapper--icon {
+		height: 200px;
 	}
 }

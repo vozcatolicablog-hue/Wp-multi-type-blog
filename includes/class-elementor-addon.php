@@ -38,6 +38,10 @@ class Elementor_Addon {
 
 		// Register styles and scripts.
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+
+		// wp_enqueue_scripts does not run in wp-admin, so the handles must also be
+		// registered before the Elementor editor tries to enqueue them.
+		add_action( 'elementor/editor/before_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'elementor/editor/after_enqueue_scripts', array( $this, 'enqueue_editor_assets' ) );
 	}
 
@@ -57,6 +61,11 @@ class Elementor_Addon {
 	 * Register frontend CSS and Javascript assets.
 	 */
 	public function enqueue_assets() {
+		// Runs on both the frontend and the editor hook; register only once.
+		if ( wp_style_is( 'wp-multipost-blog-widget-css', 'registered' ) ) {
+			return;
+		}
+
 		wp_register_style(
 			'wp-multipost-blog-widget-css',
 			WP_MULTIPOST_BLOG_URL . 'assets/css/blog-posts-widget.css',

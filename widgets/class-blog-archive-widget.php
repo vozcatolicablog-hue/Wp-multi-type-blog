@@ -46,9 +46,11 @@ class Blog_Archive_Widget extends Blog_Posts_Widget {
 			$settings['archive_author_id'] = get_queried_object_id();
 		}
 
-		$settings['current_post_id'] = get_queried_object_id();
+		// Only singular views have a "current post". On archives get_queried_object_id()
+		// returns a term or user ID, which would exclude an unrelated post by that ID.
+		$settings['current_post_id'] = is_singular() ? get_queried_object_id() : 0;
 		$settings = \WpMultiPostTypeBlog\Utils::sanitize_settings( $settings );
-		$pagination = $settings['pagination'];
+		$settings = \WpMultiPostTypeBlog\Utils::apply_featured_exclusions( $settings );
 
 		$query = new \WP_Query( \WpMultiPostTypeBlog\Utils::build_query_args( $settings, $paged ) );
 		$max_pages = \WpMultiPostTypeBlog\Utils::get_max_pages( $query, $settings );
@@ -58,10 +60,15 @@ class Blog_Archive_Widget extends Blog_Posts_Widget {
 			return;
 		}
 
-		// 5.1: Pre-cache postmeta (including views count) before starting the loops
+		// 5.1: Pre-cache postmeta before starting the loops
 		$post_ids = wp_list_pluck( $query->posts, 'ID' );
 		if ( ! empty( $post_ids ) ) {
 			update_postmeta_cache( $post_ids );
+
+			// Views live in their own tables, so they need a separate batch query.
+			if ( 'yes' === $settings['show_views'] ) {
+				self::prime_views_cache( $query->posts );
+			}
 		}
 
 		$settings_signature = \WpMultiPostTypeBlog\Utils::sign_settings( $settings );
@@ -70,7 +77,7 @@ class Blog_Archive_Widget extends Blog_Posts_Widget {
 		$post_types = $settings['post_types'];
 
 		// 1.1: Dynamically check which post types have actual posts matching the query parameters with transient caching
-		$cache_key = 'wpmb_active_pt_' . md5( wp_json_encode( $settings ) );
+		$cache_key = \WpMultiPostTypeBlog\Utils::cache_key( 'active_pt_' . md5( wp_json_encode( $settings ) ) );
 		$active_post_types = get_transient( $cache_key );
 		if ( false === $active_post_types ) {
 			$active_post_types = array();

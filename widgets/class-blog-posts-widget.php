@@ -78,7 +78,7 @@ class Blog_Posts_Widget extends Widget_Base {
 	 * @return array Post types key-value pairs.
 	 */
 	private function get_all_post_types() {
-		$cache_key = 'wpmb_all_post_types';
+		$cache_key = \WpMultiPostTypeBlog\Utils::cache_key( 'all_post_types' );
 		$cached = get_transient( $cache_key );
 		if ( false !== $cached ) {
 			return $cached;
@@ -122,19 +122,35 @@ class Blog_Posts_Widget extends Widget_Base {
 	}
 
 	/**
+	 * Retrieve the selectable heading levels for post titles.
+	 *
+	 * @return array
+	 */
+	private function get_heading_tag_options() {
+		$options = array();
+
+		foreach ( \WpMultiPostTypeBlog\Utils::allowed_heading_tags() as $tag ) {
+			$options[ $tag ] = strtoupper( $tag );
+		}
+
+		return $options;
+	}
+
+	/**
 	 * Retrieve the list of authors/users with transient caching.
 	 *
 	 * @return array Authors key-value pairs.
 	 */
 	private function get_all_authors() {
-		$cache_key = 'wpmb_all_authors';
+		$cache_key = \WpMultiPostTypeBlog\Utils::cache_key( 'all_authors' );
 		$cached = get_transient( $cache_key );
 		if ( false !== $cached ) {
 			return $cached;
 		}
 
+		// 'who' => 'authors' is deprecated since WP 5.9; 'capability' replaces it.
 		$users = get_users( array(
-			'who'                 => 'authors',
+			'capability'          => array( 'edit_posts' ),
 			'has_published_posts' => true,
 			'fields'              => array( 'ID', 'display_name' ),
 		) );
@@ -153,7 +169,7 @@ class Blog_Posts_Widget extends Widget_Base {
 	 * @return array Terms key-value pairs grouped by taxonomy.
 	 */
 	private function get_all_taxonomy_terms() {
-		$cache_key = 'wpmb_all_taxonomy_terms';
+		$cache_key = \WpMultiPostTypeBlog\Utils::cache_key( 'all_taxonomy_terms' );
 		$cached = get_transient( $cache_key );
 		if ( false !== $cached ) {
 			return $cached;
@@ -454,6 +470,79 @@ class Blog_Posts_Widget extends Widget_Base {
 				'type'    => Controls_Manager::SELECT,
 				'default' => 'medium_large',
 				'options' => $this->get_image_size_options(),
+			]
+		);
+
+		$this->add_control(
+			'image_fallback',
+			[
+				'label'       => esc_html__( 'Sin imagen destacada', 'wp-multi-post-type-blog' ),
+				'type'        => Controls_Manager::SELECT,
+				'default'     => 'hide',
+				'options'     => [
+					'hide'        => esc_html__( 'Ocultar el área de imagen', 'wp-multi-post-type-blog' ),
+					'placeholder' => esc_html__( 'Mostrar placeholder genérico', 'wp-multi-post-type-blog' ),
+				],
+				'description' => sprintf(
+					/* translators: %s: link to the plugin settings screen. */
+					esc_html__( 'Solo se aplica si el tipo de contenido tampoco tiene campo personalizado ni imagen de respaldo configurados en %s.', 'wp-multi-post-type-blog' ),
+					'<a href="' . esc_url( admin_url( 'options-general.php?page=' . \WpMultiPostTypeBlog\Admin_Settings::MENU_SLUG ) ) . '" target="_blank">'
+						. esc_html__( 'Ajustes → Multi-Post Blog', 'wp-multi-post-type-blog' ) . '</a>'
+				),
+			]
+		);
+
+		$this->add_control(
+			'category_level',
+			[
+				'label'       => esc_html__( 'Categoría de la etiqueta', 'wp-multi-post-type-blog' ),
+				'type'        => Controls_Manager::SELECT,
+				'default'     => 'top',
+				'options'     => [
+					'top'     => esc_html__( 'La categoría superior', 'wp-multi-post-type-blog' ),
+					'deepest' => esc_html__( 'La más específica', 'wp-multi-post-type-blog' ),
+				],
+				'description' => esc_html__( 'En una entrada archivada bajo "Niños > Devociones", la superior muestra Niños y la más específica muestra Devociones.', 'wp-multi-post-type-blog' ),
+				'condition'   => [
+					'show_category' => 'yes',
+				],
+			]
+		);
+
+		$this->add_control(
+			'hide_featured_duplicates',
+			[
+				'label'        => esc_html__( 'Evitar repetir destacados', 'wp-multi-post-type-blog' ),
+				'type'         => Controls_Manager::SWITCHER,
+				'label_on'     => esc_html__( 'Sí', 'wp-multi-post-type-blog' ),
+				'label_off'    => esc_html__( 'No', 'wp-multi-post-type-blog' ),
+				'return_value' => 'yes',
+				'default'      => 'yes',
+				'description'  => esc_html__( 'Oculta las entradas que ya aparecieron como destacado en un widget anterior de la misma página. Se aplica solo hacia abajo: el widget de más arriba conserva su destacado.', 'wp-multi-post-type-blog' ),
+			]
+		);
+
+		$this->add_control(
+			'featured_title_tag',
+			[
+				'label'       => esc_html__( 'Etiqueta del título destacado', 'wp-multi-post-type-blog' ),
+				'type'        => Controls_Manager::SELECT,
+				'default'     => 'h2',
+				'options'     => $this->get_heading_tag_options(),
+				'description' => esc_html__( 'Usá H1 solo si esta es la única entrada destacada de la página y no hay otro H1. Una página debe tener un H1 y uno solo.', 'wp-multi-post-type-blog' ),
+				'condition'   => [
+					'show_featured' => 'yes',
+				],
+			]
+		);
+
+		$this->add_control(
+			'list_title_tag',
+			[
+				'label'   => esc_html__( 'Etiqueta del título de la lista', 'wp-multi-post-type-blog' ),
+				'type'    => Controls_Manager::SELECT,
+				'default' => 'h3',
+				'options' => $this->get_heading_tag_options(),
 			]
 		);
 
@@ -798,29 +887,418 @@ class Blog_Posts_Widget extends Widget_Base {
 	}
 
 	/**
-	 * Fallback method to get compatible view counts from JNews views meta or others.
+	 * Post type of the Ediciones Voz Catolica catalog, which uses its own view counter.
+	 */
+	const CATALOG_BOOK_POST_TYPE = 'vcec_book';
+
+	/**
+	 * Postmeta where the catalog consolidates each book's view total.
+	 */
+	const CATALOG_VIEWS_META = '_vcec_view_count';
+
+	/**
+	 * Raw view totals for the current request, keyed by post ID.
+	 *
+	 * @var array
+	 */
+	private static $views_cache = array();
+
+	/**
+	 * Resolved name of the view counter totals table, '' when missing, null when unresolved.
+	 *
+	 * @var string|null
+	 */
+	private static $views_table = null;
+
+	/**
+	 * Locate the JNews View Counter totals table.
+	 *
+	 * JNews View Counter is a fork of WordPress Popular Posts, hence the table name.
+	 *
+	 * @return string Table name, or '' when it does not exist.
+	 */
+	private static function get_views_table() {
+		if ( null !== self::$views_table ) {
+			return self::$views_table;
+		}
+
+		global $wpdb;
+		$table = $wpdb->prefix . 'popularpostsdata';
+		$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
+
+		self::$views_table = ( $found === $table ) ? $table : '';
+
+		return self::$views_table;
+	}
+
+	/**
+	 * Preload view totals for a set of posts with a single query.
+	 *
+	 * JNews View Counter stores views in its own tables, not in postmeta, so
+	 * update_postmeta_cache() does not cover them and reading them post by post
+	 * would add one query per row rendered.
+	 *
+	 * Catalog books are skipped: they use a separate counter that consolidates into
+	 * postmeta, which update_postmeta_cache() already warmed.
+	 *
+	 * @param array $posts Post objects or post IDs.
+	 */
+	public static function prime_views_cache( $posts ) {
+		$post_ids = array();
+
+		foreach ( (array) $posts as $post ) {
+			$post = get_post( $post );
+			if ( ! $post || self::CATALOG_BOOK_POST_TYPE === $post->post_type ) {
+				continue;
+			}
+			$post_ids[] = (int) $post->ID;
+		}
+
+		$post_ids = array_values( array_unique( array_filter( $post_ids ) ) );
+		$post_ids = array_values( array_diff( $post_ids, array_keys( self::$views_cache ) ) );
+
+		if ( empty( $post_ids ) ) {
+			return;
+		}
+
+		$table = self::get_views_table();
+		if ( '' === $table ) {
+			return;
+		}
+
+		global $wpdb;
+		$placeholders = implode( ', ', array_fill( 0, count( $post_ids ), '%d' ) );
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is built from $wpdb->prefix, placeholders are generated from the ID count.
+				"SELECT postid, pageviews FROM {$table} WHERE postid IN ( {$placeholders} )",
+				$post_ids
+			)
+		);
+
+		// A post with no row has simply never been visited.
+		foreach ( $post_ids as $post_id ) {
+			self::$views_cache[ $post_id ] = 0;
+		}
+
+		if ( ! empty( $rows ) ) {
+			foreach ( $rows as $row ) {
+				self::$views_cache[ absint( $row->postid ) ] = absint( $row->pageviews );
+			}
+		}
+	}
+
+	/**
+	 * Read the view total for a single post when the batch query is unavailable.
 	 *
 	 * @param int $post_id Post ID.
+	 * @return int
+	 */
+	private static function get_views_fallback( $post_id ) {
+		if ( function_exists( 'jnews_get_views' ) ) {
+			// Both arguments matter: without them the function returns the plugin's
+			// default range instead of the historical total, already formatted as a
+			// string, which intval() would then truncate at the thousands separator.
+			return (int) jnews_get_views( $post_id, 'all', false );
+		}
+
+		// Legacy meta keys from other counters. The 'better-views-count' meta is
+		// deliberately not read: it is stale and returns empty for recent posts.
+		foreach ( array( 'jeg_views', 'jnews_views', 'post_views_count' ) as $meta_key ) {
+			$views = get_post_meta( $post_id, $meta_key, true );
+			if ( $views ) {
+				return (int) $views;
+			}
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Get the raw view count for a post.
+	 *
+	 * Two counters coexist on the site: catalog books track their own views and
+	 * consolidate them into postmeta, everything else goes through JNews View Counter.
+	 *
+	 * @param int    $post_id   Post ID.
+	 * @param string $post_type Post type, resolved from the ID when omitted.
+	 * @return int
+	 */
+	public static function get_views_raw( $post_id, $post_type = '' ) {
+		$post_id   = absint( $post_id );
+		$post_type = $post_type ? $post_type : get_post_type( $post_id );
+
+		if ( self::CATALOG_BOOK_POST_TYPE === $post_type ) {
+			// Consolidated by a cron every 10 minutes, so it can lag slightly behind
+			// the daily table. Close enough for a listing, and it costs no extra query
+			// because update_postmeta_cache() already warmed it.
+			$views = (int) get_post_meta( $post_id, self::CATALOG_VIEWS_META, true );
+		} else {
+			if ( ! isset( self::$views_cache[ $post_id ] ) ) {
+				self::prime_views_cache( array( $post_id ) );
+			}
+
+			$views = isset( self::$views_cache[ $post_id ] )
+				? (int) self::$views_cache[ $post_id ]
+				: self::get_views_fallback( $post_id );
+		}
+
+		/**
+		 * Filter the raw view count before it is formatted for display.
+		 *
+		 * Returning 0 hides the views item entirely.
+		 *
+		 * @param int $views   View count.
+		 * @param int $post_id Post ID.
+		 */
+		return (int) apply_filters( 'wp_multipost_blog_views_count', $views, $post_id );
+	}
+
+	/**
+	 * Get the formatted view count for a post.
+	 *
+	 * @param int    $post_id   Post ID.
+	 * @param string $post_type Post type, resolved from the ID when omitted.
 	 * @return string Formatted views.
 	 */
-	public static function get_views_count( $post_id ) {
-		// Try JNews popular view key
-		$views = get_post_meta( $post_id, 'jeg_views', true );
-		if ( ! $views ) {
-			// Try JNews secondary key
-			$views = get_post_meta( $post_id, 'jnews_views', true );
-		}
-		if ( ! $views ) {
-			// Try standard plugin key
-			$views = get_post_meta( $post_id, 'post_views_count', true );
+	public static function get_views_count( $post_id, $post_type = '' ) {
+		return number_format_i18n( self::get_views_raw( $post_id, $post_type ) );
+	}
+
+	/**
+	 * Resolve which image to render for a post.
+	 *
+	 * Fallback chain: featured image -> custom field configured for the post type ->
+	 * image configured for the post type in Settings -> Multi-Post Blog -> generic
+	 * placeholder or no image at all, depending on the widget's 'image_fallback' control.
+	 *
+	 * @param \WP_Post $post     Post object.
+	 * @param array    $settings Sanitized render settings.
+	 * @return array {
+	 *     @type string $type One of 'thumbnail', 'meta', 'icon', 'placeholder', 'none'.
+	 *     @type int    $id   Attachment ID, meaningful for 'icon' and 'meta'.
+	 *     @type string $url  Image URL, only used by 'meta' when the file is not in the media library.
+	 *     @type string $fit  'cover' or 'contain', only meaningful for 'meta'.
+	 * }
+	 */
+	protected static function resolve_image( $post, $settings ) {
+		if ( has_post_thumbnail( $post->ID ) ) {
+			return array(
+				'type' => 'thumbnail',
+				'id'   => 0,
+				'url'  => '',
+				'fit'  => 'cover',
+			);
 		}
 
-		// Check if JNews function exists
-		if ( ! $views && function_exists( 'jnews_get_views' ) ) {
-			$views = jnews_get_views( $post_id );
+		$meta_image = self::resolve_meta_image( $post );
+		if ( $meta_image ) {
+			return $meta_image;
 		}
 
-		return $views ? number_format_i18n( intval( $views ) ) : '0';
+		$fallback_id = \WpMultiPostTypeBlog\Admin_Settings::get_image_id( $post->post_type );
+		if ( $fallback_id ) {
+			return array(
+				'type' => 'icon',
+				'id'   => $fallback_id,
+				'url'  => '',
+				'fit'  => 'contain',
+			);
+		}
+
+		$mode = ! empty( $settings['image_fallback'] ) ? $settings['image_fallback'] : 'hide';
+
+		return array(
+			'type' => ( 'placeholder' === $mode ) ? 'placeholder' : 'none',
+			'id'   => 0,
+			'url'  => '',
+			'fit'  => 'cover',
+		);
+	}
+
+	/**
+	 * Look for the post image in the custom fields configured for its post type.
+	 *
+	 * Post types like the Ediciones catalogue or Simple Download Monitor never write
+	 * _thumbnail_id and keep the cover in a meta of their own, so without this step
+	 * every entry falls back to the post type logo.
+	 *
+	 * @param \WP_Post $post Post object.
+	 * @return array|null Image descriptor, or null when no field holds a usable image.
+	 */
+	protected static function resolve_meta_image( $post ) {
+		$keys = \WpMultiPostTypeBlog\Admin_Settings::get_meta_keys( $post->post_type );
+
+		foreach ( $keys as $key ) {
+			$source = self::parse_image_meta( get_post_meta( $post->ID, $key, true ) );
+			if ( ! $source ) {
+				continue;
+			}
+
+			return array(
+				'type' => 'meta',
+				'id'   => $source['id'],
+				'url'  => $source['url'],
+				'fit'  => self::image_fit( $source['id'] ),
+			);
+		}
+
+		return null;
+	}
+
+	/**
+	 * Normalize whatever a custom field stores into an attachment ID and/or a URL.
+	 *
+	 * Handles the formats these fields show up in: a bare attachment ID, a URL, an ACF
+	 * image array, and lists where only the first entry is relevant.
+	 *
+	 * @param mixed $value Raw meta value.
+	 * @return array|null { @type int $id, @type string $url }, or null when unusable.
+	 */
+	protected static function parse_image_meta( $value ) {
+		if ( is_array( $value ) ) {
+			// ACF returns the whole attachment when the field is set to "image array".
+			if ( isset( $value['ID'] ) || isset( $value['id'] ) ) {
+				$value = isset( $value['ID'] ) ? $value['ID'] : $value['id'];
+			} elseif ( isset( $value['url'] ) ) {
+				$value = $value['url'];
+			} else {
+				$value = reset( $value );
+			}
+		}
+
+		if ( ! is_scalar( $value ) ) {
+			return null;
+		}
+
+		$value = trim( (string) $value );
+		if ( '' === $value ) {
+			return null;
+		}
+
+		// Gallery-style fields keep a comma separated list; the first image is the cover.
+		if ( false !== strpos( $value, ',' ) && ! preg_match( '#^https?://#i', $value ) ) {
+			$value = trim( strtok( $value, ',' ) );
+		}
+
+		if ( ctype_digit( $value ) ) {
+			$id = absint( $value );
+
+			return ( $id && 'attachment' === get_post_type( $id ) )
+				? array(
+					'id'  => $id,
+					'url' => '',
+				)
+				: null;
+		}
+
+		if ( ! preg_match( '#^https?://#i', $value ) ) {
+			return null;
+		}
+
+		return array(
+			'id'  => self::attachment_id_from_url( $value ),
+			'url' => $value,
+		);
+	}
+
+	/**
+	 * Attachment ID behind a URL, cached so a listing does not run one query per card.
+	 *
+	 * @param string $url Image URL.
+	 * @return int Attachment ID, 0 when the file is not in the media library.
+	 */
+	protected static function attachment_id_from_url( $url ) {
+		$cache_key = 'wpmb_att_' . md5( $url );
+		$cached    = wp_cache_get( $cache_key, 'wpmb' );
+
+		if ( false !== $cached ) {
+			return (int) $cached;
+		}
+
+		$id = (int) attachment_url_to_postid( $url );
+		wp_cache_set( $cache_key, $id, 'wpmb', HOUR_IN_SECONDS );
+
+		return $id;
+	}
+
+	/**
+	 * Decide whether an image should be cropped or shown whole.
+	 *
+	 * Book covers and download sheets are portrait: cropping them to the landscape
+	 * frame of a card cuts off the title, so they are contained instead. Landscape
+	 * images keep the usual full-bleed crop.
+	 *
+	 * @param int $attachment_id Attachment ID, 0 when unknown.
+	 * @return string 'cover' or 'contain'.
+	 */
+	protected static function image_fit( $attachment_id ) {
+		if ( ! $attachment_id ) {
+			// Dimensions unknown: these fields are almost always used for portrait art.
+			return 'contain';
+		}
+
+		$meta = wp_get_attachment_metadata( $attachment_id );
+		if ( empty( $meta['width'] ) || empty( $meta['height'] ) ) {
+			return 'contain';
+		}
+
+		// A small margin keeps roughly square images (1:1 logos) out of the crop path.
+		return ( $meta['height'] > $meta['width'] * 1.05 ) ? 'contain' : 'cover';
+	}
+
+	/**
+	 * Render the <img> for an image coming from a custom field.
+	 *
+	 * @param array  $image   Image descriptor from resolve_image().
+	 * @param string $size    Registered image size.
+	 * @param string $class   CSS class for the image.
+	 * @param string $loading Value for the loading attribute.
+	 * @param string $alt     Alternative text.
+	 * @return string HTML.
+	 */
+	protected static function meta_image_html( $image, $size, $class, $loading, $alt ) {
+		if ( ! empty( $image['id'] ) ) {
+			return wp_get_attachment_image(
+				$image['id'],
+				$size,
+				false,
+				array(
+					'class'   => $class,
+					'loading' => $loading,
+					'alt'     => $alt,
+				)
+			);
+		}
+
+		// The file is not in the media library, so there is no srcset to build.
+		return sprintf(
+			'<img class="%1$s" src="%2$s" alt="%3$s" loading="%4$s" />',
+			esc_attr( $class ),
+			esc_url( $image['url'] ),
+			esc_attr( $alt ),
+			esc_attr( $loading )
+		);
+	}
+
+	/**
+	 * Extra CSS class for the image wrapper, so the markup stays readable.
+	 *
+	 * @param array  $image Image descriptor from resolve_image().
+	 * @param string $base  Base wrapper class.
+	 * @return string Class attribute suffix, empty when the default treatment applies.
+	 */
+	protected static function image_wrapper_modifier( $image, $base ) {
+		if ( 'icon' === $image['type'] ) {
+			return ' ' . $base . '--icon';
+		}
+
+		if ( 'meta' === $image['type'] && 'contain' === $image['fit'] ) {
+			return ' ' . $base . '--cover';
+		}
+
+		return '';
 	}
 
 	/**
@@ -841,7 +1319,7 @@ class Blog_Posts_Widget extends Widget_Base {
 	 * @param string $post_type Post Type.
 	 * @return array|null Name and link of the term or null.
 	 */
-	public static function get_primary_category( $post_id, $post_type ) {
+	public static function get_primary_category( $post_id, $post_type, $level = 'top' ) {
 		$taxonomies = get_object_taxonomies( $post_type, 'objects' );
 		$category_taxonomy = '';
 
@@ -867,20 +1345,53 @@ class Blog_Posts_Widget extends Widget_Base {
 		if ( ! empty( $category_taxonomy ) ) {
 			$terms = get_the_terms( $post_id, $category_taxonomy );
 			if ( ! empty( $terms ) && ! is_wp_error( $terms ) ) {
-				$first_term = reset( $terms );
-				$term_link  = get_term_link( $first_term );
+				$term = reset( $terms );
+
+				if ( 'top' === $level ) {
+					$term = self::root_term( $term, $category_taxonomy );
+				}
+
+				$term_link = get_term_link( $term );
 				if ( is_wp_error( $term_link ) ) {
 					return null;
 				}
 
 				return array(
-					'name' => $first_term->name,
+					'name' => $term->name,
 					'link' => $term_link,
 				);
 			}
 		}
 
 		return null;
+	}
+
+	/**
+	 * Climb a term up to the root of its branch.
+	 *
+	 * get_the_terms() returns terms ordered by name, not by depth, so a post filed
+	 * under "Niños > Devociones" hands back the child first purely because of the
+	 * alphabet. Walking up to the outermost ancestor gives the section the reader
+	 * recognises instead of the narrowest label.
+	 *
+	 * @param \WP_Term $term     Term to start from.
+	 * @param string   $taxonomy Taxonomy name.
+	 * @return \WP_Term The topmost ancestor, or the same term when it is already a root.
+	 */
+	protected static function root_term( $term, $taxonomy ) {
+		if ( empty( $term->parent ) ) {
+			return $term;
+		}
+
+		// Ordered from the closest parent to the outermost ancestor.
+		$ancestors = get_ancestors( $term->term_id, $taxonomy, 'taxonomy' );
+		if ( empty( $ancestors ) ) {
+			return $term;
+		}
+
+		$root = get_term( (int) end( $ancestors ), $taxonomy );
+
+		return ( $root && ! is_wp_error( $root ) ) ? $root : $term;
 	}
 
 	/**
@@ -893,26 +1404,41 @@ class Blog_Posts_Widget extends Widget_Base {
 		$title        = get_the_title( $post_id );
 		$permalink    = get_permalink( $post_id );
 		$image_size   = ! empty( $settings['featured_image_size'] ) ? $settings['featured_image_size'] : 'full';
-		
-		$primary_cat  = self::get_primary_category( $post_id, $post->post_type );
-		$views_count  = self::get_views_count( $post_id );
+		// Re-sanitized here because render_* is also reached from the AJAX handler.
+		$title_tag    = \WpMultiPostTypeBlog\Utils::heading_tag( $settings, 'featured_title_tag', 'h2' );
+
+		$primary_cat  = self::get_primary_category( $post_id, $post->post_type, \WpMultiPostTypeBlog\Utils::category_level( $settings ) );
+		$views_raw    = self::get_views_raw( $post_id, $post->post_type );
+		$views_count  = number_format_i18n( $views_raw );
 		$author_name  = get_the_author_meta( 'display_name', $post->post_author );
 		$post_date    = get_the_date( '', $post_id );
 		$button_text  = ! empty( $settings['read_more_text'] ) ? $settings['read_more_text'] : esc_html__( 'LEER MÁS', 'wp-multi-post-type-blog' );
-		$show_meta    = self::is_enabled( $settings, 'show_author' ) || self::is_enabled( $settings, 'show_date' ) || self::is_enabled( $settings, 'show_views' );
+
+		// A zero view count says nothing useful, so the item is dropped rather than shown as "0".
+		$show_views   = self::is_enabled( $settings, 'show_views' ) && $views_raw > 0;
+		$show_meta    = self::is_enabled( $settings, 'show_author' ) || self::is_enabled( $settings, 'show_date' ) || $show_views;
+
+		$image     = self::resolve_image( $post, $settings );
+		$has_image = ( 'none' !== $image['type'] );
 
 		ob_start();
 		?>
-		<article class="featured-post">
-			<div class="featured-post__image-wrapper">
-				<a href="<?php echo esc_url( $permalink ); ?>">
-					<?php if ( has_post_thumbnail( $post_id ) ) : ?>
-						<?php echo get_the_post_thumbnail( $post_id, $image_size, array( 'class' => 'featured-post__image', 'loading' => 'eager' ) ); ?>
-					<?php else : ?>
-						<img class="featured-post__image" src="<?php echo esc_url( WP_MULTIPOST_BLOG_URL . 'assets/images/placeholder.jpg' ); ?>" alt="<?php echo esc_attr( $title ); ?>" loading="eager" />
-					<?php endif; ?>
-				</a>
-			</div>
+		<article class="featured-post<?php echo $has_image ? '' : ' featured-post--no-image'; ?>">
+			<?php if ( $has_image ) : ?>
+				<div class="featured-post__image-wrapper<?php echo esc_attr( self::image_wrapper_modifier( $image, 'featured-post__image-wrapper' ) ); ?>">
+					<a href="<?php echo esc_url( $permalink ); ?>">
+						<?php if ( 'thumbnail' === $image['type'] ) : ?>
+							<?php echo get_the_post_thumbnail( $post_id, $image_size, array( 'class' => 'featured-post__image', 'loading' => 'eager' ) ); ?>
+						<?php elseif ( 'meta' === $image['type'] ) : ?>
+							<?php echo self::meta_image_html( $image, $image_size, 'featured-post__image', 'eager', $title ); ?>
+						<?php elseif ( 'icon' === $image['type'] ) : ?>
+							<?php echo wp_get_attachment_image( $image['id'], $image_size, false, array( 'class' => 'featured-post__image', 'loading' => 'eager', 'alt' => '' ) ); ?>
+						<?php else : ?>
+							<img class="featured-post__image" src="<?php echo esc_url( WP_MULTIPOST_BLOG_URL . 'assets/images/placeholder.jpg' ); ?>" alt="<?php echo esc_attr( $title ); ?>" loading="eager" />
+						<?php endif; ?>
+					</a>
+				</div>
+			<?php endif; ?>
 			<div class="featured-post__card">
 				<?php if ( $primary_cat && self::is_enabled( $settings, 'show_category' ) ) : ?>
 					<span class="featured-post__badge">
@@ -920,18 +1446,18 @@ class Blog_Posts_Widget extends Widget_Base {
 					</span>
 				<?php endif; ?>
 				
-				<h2 class="featured-post__title">
+				<<?php echo $title_tag; ?> class="featured-post__title">
 					<a href="<?php echo esc_url( $permalink ); ?>">
 						<?php if ( 'post' !== $post->post_type ) : ?>
 							<?php
 							$post_type_obj = get_post_type_object( $post->post_type );
 							$post_type_label = $post_type_obj ? $post_type_obj->labels->singular_name : $post->post_type;
 							?>
-							<span class="post-type-prefix"><?php echo esc_html( $post_type_label ); ?>:</span> 
+							<span class="post-type-prefix"><?php echo esc_html( $post_type_label ); ?>:</span>
 						<?php endif; ?>
 						<?php echo esc_html( $title ); ?>
 					</a>
-				</h2>
+				</<?php echo $title_tag; ?>>
 				
 				<?php if ( $show_meta ) : ?>
 					<div class="featured-post__meta">
@@ -947,7 +1473,7 @@ class Blog_Posts_Widget extends Widget_Base {
 								<?php echo esc_html( $post_date ); ?>
 							</span>
 						<?php endif; ?>
-						<?php if ( self::is_enabled( $settings, 'show_views' ) ) : ?>
+						<?php if ( $show_views ) : ?>
 							<span class="featured-post__meta-item featured-post__meta-views">
 								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="meta-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
 								<?php echo esc_html( $views_count ); ?>
@@ -977,56 +1503,82 @@ class Blog_Posts_Widget extends Widget_Base {
 		$title        = get_the_title( $post_id );
 		$permalink    = get_permalink( $post_id );
 		$image_size   = ! empty( $settings['list_image_size'] ) ? $settings['list_image_size'] : 'medium_large';
+		// Re-sanitized here because render_* is also reached from the AJAX handler.
+		$title_tag    = \WpMultiPostTypeBlog\Utils::heading_tag( $settings, 'list_title_tag', 'h3' );
 
-		$primary_cat  = self::get_primary_category( $post_id, $post->post_type );
-		$views_count  = self::get_views_count( $post_id );
+		$primary_cat  = self::get_primary_category( $post_id, $post->post_type, \WpMultiPostTypeBlog\Utils::category_level( $settings ) );
+		$views_raw    = self::get_views_raw( $post_id, $post->post_type );
+		$views_count  = number_format_i18n( $views_raw );
 		$author_name  = get_the_author_meta( 'display_name', $post->post_author );
 		$post_date    = get_the_date( '', $post_id );
 		$button_text  = ! empty( $settings['read_more_text'] ) ? $settings['read_more_text'] : esc_html__( 'LEER MÁS', 'wp-multi-post-type-blog' );
-		$show_meta    = self::is_enabled( $settings, 'show_author' ) || self::is_enabled( $settings, 'show_date' ) || self::is_enabled( $settings, 'show_views' );
 		$layout_type  = ! empty( $settings['layout_type'] ) ? $settings['layout_type'] : 'classic';
+
+		// The compact layout hides the excerpt and the read more link, so skip building them.
+		$is_compact = ( 'compact' === $layout_type );
+
+		// A zero view count says nothing useful, so the item is dropped rather than shown as "0".
+		$show_views    = self::is_enabled( $settings, 'show_views' ) && $views_raw > 0;
+		$show_cat_meta = $is_compact && $primary_cat && self::is_enabled( $settings, 'show_category' );
+		$show_meta     = self::is_enabled( $settings, 'show_author' ) || self::is_enabled( $settings, 'show_date' ) || $show_views || $show_cat_meta;
 
 		// Truncate excerpt without breaking multibyte characters.
 		$excerpt_words = isset( $settings['excerpt_words'] ) ? intval( $settings['excerpt_words'] ) : 30;
-		$excerpt       = $excerpt_words > 0 ? wp_trim_words( wp_strip_all_tags( get_the_excerpt( $post ) ), $excerpt_words, '...' ) : '';
+		$excerpt       = ( ! $is_compact && $excerpt_words > 0 ) ? wp_trim_words( wp_strip_all_tags( get_the_excerpt( $post ) ), $excerpt_words, '...' ) : '';
+
+		$image     = self::resolve_image( $post, $settings );
+		$has_image = ( 'none' !== $image['type'] );
+		$show_badge = ( ! $is_compact && $primary_cat && self::is_enabled( $settings, 'show_category' ) );
 
 		ob_start();
 		?>
-		<article class="list-post-item">
-			<div class="list-post-item__image-wrapper">
-				<a href="<?php echo esc_url( $permalink ); ?>">
-					<?php if ( has_post_thumbnail( $post_id ) ) : ?>
-						<?php echo get_the_post_thumbnail( $post_id, $image_size, array( 'class' => 'list-post-item__image', 'loading' => 'lazy' ) ); ?>
-					<?php else : ?>
-						<img class="list-post-item__image" src="<?php echo esc_url( WP_MULTIPOST_BLOG_URL . 'assets/images/placeholder.jpg' ); ?>" alt="<?php echo esc_attr( $title ); ?>" loading="lazy" />
+		<article class="list-post-item<?php echo $has_image ? '' : ' list-post-item--no-image'; ?>">
+			<?php if ( $has_image ) : ?>
+				<div class="list-post-item__image-wrapper<?php echo esc_attr( self::image_wrapper_modifier( $image, 'list-post-item__image-wrapper' ) ); ?>">
+					<a href="<?php echo esc_url( $permalink ); ?>">
+						<?php if ( 'thumbnail' === $image['type'] ) : ?>
+							<?php echo get_the_post_thumbnail( $post_id, $image_size, array( 'class' => 'list-post-item__image', 'loading' => 'lazy' ) ); ?>
+						<?php elseif ( 'meta' === $image['type'] ) : ?>
+							<?php echo self::meta_image_html( $image, $image_size, 'list-post-item__image', 'lazy', $title ); ?>
+						<?php elseif ( 'icon' === $image['type'] ) : ?>
+							<?php echo wp_get_attachment_image( $image['id'], $image_size, false, array( 'class' => 'list-post-item__image', 'loading' => 'lazy', 'alt' => '' ) ); ?>
+						<?php else : ?>
+							<img class="list-post-item__image" src="<?php echo esc_url( WP_MULTIPOST_BLOG_URL . 'assets/images/placeholder.jpg' ); ?>" alt="<?php echo esc_attr( $title ); ?>" loading="lazy" />
+						<?php endif; ?>
+					</a>
+					<?php if ( $show_badge ) : ?>
+						<span class="list-post-item__badge">
+							<a href="<?php echo esc_url( $primary_cat['link'] ); ?>"><?php echo esc_html( $primary_cat['name'] ); ?></a>
+						</span>
 					<?php endif; ?>
-				</a>
-				<?php if ( 'compact' !== $layout_type && $primary_cat && self::is_enabled( $settings, 'show_category' ) ) : ?>
-					<span class="list-post-item__badge">
+				</div>
+			<?php endif; ?>
+			<div class="list-post-item__content">
+				<?php if ( $show_badge && ! $has_image ) : ?>
+					<?php /* No image wrapper to overlay the badge on, so render it inline. */ ?>
+					<span class="list-post-item__badge list-post-item__badge--inline">
 						<a href="<?php echo esc_url( $primary_cat['link'] ); ?>"><?php echo esc_html( $primary_cat['name'] ); ?></a>
 					</span>
 				<?php endif; ?>
-			</div>
-			<div class="list-post-item__content">
-				<h3 class="list-post-item__title">
+				<<?php echo $title_tag; ?> class="list-post-item__title">
 					<a href="<?php echo esc_url( $permalink ); ?>">
 						<?php if ( 'post' !== $post->post_type ) : ?>
 							<?php
 							$post_type_obj = get_post_type_object( $post->post_type );
 							$post_type_label = $post_type_obj ? $post_type_obj->labels->singular_name : $post->post_type;
 							?>
-							<span class="post-type-prefix"><?php echo esc_html( $post_type_label ); ?>:</span> 
+							<span class="post-type-prefix"><?php echo esc_html( $post_type_label ); ?>:</span>
 						<?php endif; ?>
 						<?php echo esc_html( $title ); ?>
 					</a>
-				</h3>
+				</<?php echo $title_tag; ?>>
 				
 				<?php if ( $show_meta ) : ?>
 					<div class="list-post-item__meta">
 						<?php if ( self::is_enabled( $settings, 'show_author' ) ) : ?>
 							<span class="list-post-item__meta-item list-post-item__meta-author">
 								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="meta-icon"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-								<?php echo ( 'compact' === $layout_type ) ? '' : esc_html__( 'POR ', 'wp-multi-post-type-blog' ); ?><?php echo esc_html( $author_name ); ?>
+								<?php echo $is_compact ? '' : esc_html__( 'POR ', 'wp-multi-post-type-blog' ); ?><?php echo esc_html( $author_name ); ?>
 							</span>
 						<?php endif; ?>
 						<?php if ( self::is_enabled( $settings, 'show_date' ) ) : ?>
@@ -1035,13 +1587,13 @@ class Blog_Posts_Widget extends Widget_Base {
 								<?php echo esc_html( $post_date ); ?>
 							</span>
 						<?php endif; ?>
-						<?php if ( 'compact' === $layout_type && $primary_cat && self::is_enabled( $settings, 'show_category' ) ) : ?>
+						<?php if ( $show_cat_meta ) : ?>
 							<span class="list-post-item__meta-item list-post-item__meta-category">
 								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="meta-icon"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
 								<a href="<?php echo esc_url( $primary_cat['link'] ); ?>"><?php echo esc_html( $primary_cat['name'] ); ?></a>
 							</span>
 						<?php endif; ?>
-						<?php if ( self::is_enabled( $settings, 'show_views' ) ) : ?>
+						<?php if ( $show_views ) : ?>
 							<span class="list-post-item__meta-item list-post-item__meta-views">
 								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="meta-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
 								<?php echo esc_html( $views_count ); ?>
@@ -1054,12 +1606,14 @@ class Blog_Posts_Widget extends Widget_Base {
 					<p class="list-post-item__excerpt"><?php echo esc_html( $excerpt ); ?></p>
 				<?php endif; ?>
 				
-				<div class="list-post-item__button-container">
-					<a href="<?php echo esc_url( $permalink ); ?>" class="list-post-item__read-more">
-						<?php echo esc_html( $button_text ); ?>
-						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="arrow-icon"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-					</a>
-				</div>
+				<?php if ( ! $is_compact ) : ?>
+					<div class="list-post-item__button-container">
+						<a href="<?php echo esc_url( $permalink ); ?>" class="list-post-item__read-more">
+							<?php echo esc_html( $button_text ); ?>
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="arrow-icon"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+						</a>
+					</div>
+				<?php endif; ?>
 			</div>
 		</article>
 		<?php
@@ -1099,28 +1653,28 @@ class Blog_Posts_Widget extends Widget_Base {
 
 			<div class="premium-blog-widget__container">
 				<?php
-				$count     = 0;
-				$list_open = false;
+				$count         = 0;
+				$featured_html = '';
+				$list_html     = '';
 				while ( $query->have_posts() ) {
 					$query->the_post();
 					$count++;
 
 					if ( 1 === $paged && 1 === $count && 'yes' === $settings['show_featured'] ) {
-						echo self::render_featured_post( get_post(), $settings );
+						// Registrado aquí, antes de que Elementor pase al siguiente widget,
+						// para que los de más abajo puedan excluirlo de su consulta.
+						\WpMultiPostTypeBlog\Utils::register_featured_id( get_the_ID() );
+						$featured_html = self::render_featured_post( get_post(), $settings );
 						continue;
 					}
 
-					if ( ! $list_open ) {
-						echo '<div class="premium-blog-widget__list list-posts">';
-						$list_open = true;
-					}
-
-					echo self::render_list_post( get_post(), $settings );
+					$list_html .= self::render_list_post( get_post(), $settings );
 				}
 
-				if ( $list_open ) {
-					echo '</div>';
-				}
+				// The list container is always rendered, even when empty, so AJAX pagination
+				// and the archive filter tabs always have a target to append into.
+				echo $featured_html;
+				echo '<div class="premium-blog-widget__list list-posts">' . $list_html . '</div>';
 				?>
 			</div>
 
@@ -1170,9 +1724,11 @@ class Blog_Posts_Widget extends Widget_Base {
 
 		$paged = isset( $_GET[ $page_var ] ) ? max( 1, absint( wp_unslash( $_GET[ $page_var ] ) ) ) : 1;
 
-		$settings['current_post_id'] = get_queried_object_id();
+		// Only singular views have a "current post". On archives get_queried_object_id()
+		// returns a term or user ID, which would exclude an unrelated post by that ID.
+		$settings['current_post_id'] = is_singular() ? get_queried_object_id() : 0;
 		$settings = \WpMultiPostTypeBlog\Utils::sanitize_settings( $settings );
-		$pagination = $settings['pagination'];
+		$settings = \WpMultiPostTypeBlog\Utils::apply_featured_exclusions( $settings );
 
 		$query = new \WP_Query( \WpMultiPostTypeBlog\Utils::build_query_args( $settings, $paged ) );
 		$max_pages = \WpMultiPostTypeBlog\Utils::get_max_pages( $query, $settings );
@@ -1182,10 +1738,15 @@ class Blog_Posts_Widget extends Widget_Base {
 			return;
 		}
 
-		// 5.1: Pre-cache postmeta (including views count) before starting loop
+		// 5.1: Pre-cache postmeta before starting loop
 		$post_ids = wp_list_pluck( $query->posts, 'ID' );
 		if ( ! empty( $post_ids ) ) {
 			update_postmeta_cache( $post_ids );
+
+			// Views live in their own tables, so they need a separate batch query.
+			if ( 'yes' === $settings['show_views'] ) {
+				self::prime_views_cache( $query->posts );
+			}
 		}
 
 		$settings_signature = \WpMultiPostTypeBlog\Utils::sign_settings( $settings );

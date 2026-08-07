@@ -35,7 +35,19 @@
 			return;
 		}
 
+		// The server always renders this container, but a full-page cache may still be
+		// serving markup from an older version where it was omitted when empty.
 		var $list = $widget.find('.premium-blog-widget__list');
+		if (!$list.length) {
+			$list = $('<div class="premium-blog-widget__list list-posts"></div>');
+			var $container = $widget.find('.premium-blog-widget__container');
+			if ($container.length) {
+				$container.append($list);
+			} else {
+				$widget.append($list);
+			}
+		}
+
 		var isLoading = false;
 		var observer;
 		var $btn, $trigger; // 2.2: Declared in outer scope to be safely available in inner scopes
@@ -96,7 +108,12 @@
 
 			// Hide any existing "No more posts" message when changing filters
 			$widget.find('.premium-blog-widget__no-more').hide();
-			
+
+			// The featured post belongs to the unfiltered query and AJAX only returns list
+			// items, so drop it instead of leaving a stale card above the filtered results.
+			// Reloading "Todos" returns that post as a regular list item, so nothing is lost.
+			$widget.find('.featured-post').remove();
+
 			$list.fadeOut(200, function() {
 				$list.empty().show();
 				loadMorePosts(true); // reset load

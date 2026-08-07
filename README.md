@@ -19,7 +19,7 @@ Fue creado para cubrir el caso donde un modulo de blog solo permite consultar un
 - Controles para mostrar u ocultar categoria, autor, fecha, vistas y extracto.
 - Control del texto de "Leer mas", largo del extracto y tamanos de imagen.
 - Paginacion por numeros, boton **Cargar Mas** via AJAX o scroll infinito.
-- Placeholder local para publicaciones sin imagen destacada.
+- Imagen o icono de respaldo configurable por tipo de contenido desde **Ajustes → Multi-Post Blog**, con opción de ocultar el área de imagen cuando no hay ninguna.
 - Carga de CSS/JS como dependencias del widget, no globalmente en todo el sitio.
 
 ## Requisitos
@@ -80,6 +80,65 @@ El endpoint AJAX valida nonce, firma de configuracion, post types publicos, taxo
 La firma de configuracion evita que un visitante modifique manualmente los settings del widget en el navegador para forzar consultas distintas a las renderizadas por Elementor.
 
 ## Changelog
+
+### 2.5.0
+
+- Nuevo control "Categoría de la etiqueta", con dos opciones: la categoría superior (por defecto) o la más específica.
+- Corrección de fondo: la etiqueta no mostraba la categoría "de abajo" por diseño, sino porque `get_the_terms()` devuelve los términos ordenados por nombre y no por profundidad. En una entrada archivada bajo "Niños > Devociones" ganaba Devociones sólo por el alfabeto, y el resultado dependía de cómo se llamara cada categoría.
+- Con la opción por defecto, el término elegido sube hasta la raíz de su rama, así que la etiqueta muestra la sección que el lector reconoce en vez de la subcategoría más angosta.
+- Para conservar el comportamiento anterior, elegir "La más específica" en el widget.
+
+### 2.4.0
+
+- Nuevo: control "Evitar repetir destacados", activado por defecto. Una entrada que ya salió como destacada en un widget anterior de la misma página queda excluida de los widgets siguientes.
+- Se aplica solo hacia abajo, en orden de documento: el widget de más arriba conserva su destacado y son los de abajo los que ceden. Elementor renderiza en ese orden, así que cuando un widget arma su consulta los de arriba ya registraron su destacado.
+- Las exclusiones se pliegan dentro de `exclude_ids` en lugar de aplicarse al construir la consulta. Eso es lo que hace que sobrevivan a la paginación AJAX de "Cargar más", que corre en otra petición con el registro vacío: los IDs viajan dentro de los ajustes firmados que ya se entregan al navegador.
+- Solo se registran las entradas del hueco destacado, no las de la lista.
+
+### 2.3.0
+
+- Nuevo: controles "Etiqueta del título destacado" y "Etiqueta del título de la lista" en el widget, con H1 a H6 disponibles. Los valores por defecto son los de siempre — H2 para el destacado y H3 para los de la lista — así que nada cambia hasta que se toquen.
+- Motivo: los niveles estaban fijos en el código y no había forma de que una página tuviera su H1. Ahora el destacado puede ascender a H1 desde el editor, sin tocar archivos.
+- El CSS del plugin usa solo clases, nunca selectores de elemento, por lo que cambiar el nivel altera la semántica sin modificar el aspecto.
+- El nivel se valida contra una lista blanca de h1 a h6 y se vuelve a sanear dentro del render, porque a esos métodos también se llega desde el manejador AJAX de "Cargar más".
+
+### 2.2.0
+
+- Corrección: los tipos de contenido que guardan su imagen en un campo personalizado en vez de en la imagen destacada de WordPress mostraban siempre el logo de respaldo. Afectaba a los libros del catálogo (`vcec_book`, portada en `_vcec_cover_image_id`) y a las descargas (`sdm_downloads`, campo ACF `Imagen-destacada-descargas`): ninguno de los 264 items publicados tiene `_thumbnail_id`, así que la cadena de respaldo saltaba directo al logo.
+- Nuevo paso en la cadena de imagen: imagen destacada → **campo personalizado** → icono del tipo de contenido → ocultar o placeholder.
+- Nueva columna "Campo personalizado con la imagen" en **Ajustes → Multi-Post Blog**. Acepta varios nombres separados por coma (se usa el primero con valor) y un guion para desactivar la búsqueda. Vacío usa los valores por defecto de cada tipo de contenido.
+- Valores por defecto incorporados, filtrables con `wpmb_default_image_meta_keys`: `vcec_book` → `_vcec_cover_image_id, _vcec_cover_image`; `sdm_downloads` → `Imagen-destacada-descargas, sdm_upload_thumbnail`.
+- El campo puede guardar un ID de adjunto, una URL, un array de ACF o una lista separada por comas: se normalizan todos. Si es un ID se usa `wp_get_attachment_image()` con srcset; si es una URL externa se resuelve el adjunto una sola vez y se cachea en object cache.
+- Las imágenes verticales (portadas de libro, fichas de descarga) se muestran enteras y centradas sobre un fondo neutro, con sombra, en lugar de recortarse al marco apaisado de la tarjeta, que cortaba el título. Las apaisadas conservan el recorte a sangre habitual. La decisión se toma por post según las dimensiones reales del adjunto.
+- El fondo de esas portadas se puede cambiar con la variable CSS `--wpmb-cover-bg`.
+
+### 2.1.0
+
+- Corrección: el contador de vistas leía de fuentes equivocadas y mostraba 0. Ahora lee el total histórico directamente de la tabla del contador (`{prefijo}popularpostsdata`), con una sola consulta por listado en lugar de una por post.
+- Corrección: los libros del catálogo (`vcec_book`) usan un contador propio y no tienen fila en `popularpostsdata`, por lo que habrían mostrado 0. Sus vistas se leen del postmeta `_vcec_view_count`, sin consultas extra.
+- Corrección: la llamada de respaldo a `jnews_get_views()` no pasaba el rango ni el formato, por lo que devolvía el rango por defecto del plugin como cadena ya formateada, que `intval()` truncaba en el separador de miles (`1.234` → `1`). Ahora se piden explícitamente el total histórico y el entero crudo.
+- El contador de vistas se oculta cuando el valor es 0, en lugar de mostrar un "0" que no aporta nada. Si además autor y fecha están desactivados, la fila de metadatos completa desaparece.
+- Nuevo filtro `wp_multipost_blog_views_count` para sobrescribir el número de vistas antes de formatearlo; devolver 0 oculta el elemento.
+- Nuevo: pantalla **Ajustes → Multi-Post Blog** para asignar una imagen o icono de respaldo a cada tipo de contenido, con selector de la biblioteca de medios.
+- Nuevo: cadena de respaldo de imagen — imagen destacada → icono del tipo de contenido → ocultar el área de imagen.
+- Nuevo: control "Sin imagen destacada" en el widget para elegir el último paso de la cadena: ocultar el área de imagen (por defecto) o mostrar el placeholder genérico.
+- Los items sin imagen pasan a texto a ancho completo, y el badge de categoría se renderiza inline al no haber miniatura sobre la que superponerse.
+- El post destacado sin imagen deja de posicionar su tarjeta en absoluto y se renderiza como tarjeta normal.
+- Las imágenes de respaldo se muestran contenidas y centradas sobre fondo neutro, sin recorte ni zoom al pasar el cursor, porque suelen ser iconos y no fotografías.
+
+### 2.0.1
+
+- Corrección: `exclude_current_post` excluía el post equivocado en archivos, porque `get_queried_object_id()` devuelve un ID de término o de usuario fuera de vistas singulares.
+- Corrección: al cambiar de pestaña en el widget Archive quedaba visible el post destacado de la consulta sin filtrar.
+- Corrección: el contenedor `.premium-blog-widget__list` ahora se renderiza siempre, incluso vacío, para que la paginación AJAX y los filtros tengan siempre un destino donde insertar.
+- Corrección: se eliminó el uso del argumento `who => authors` en `get_users()`, deprecado desde WordPress 5.9.
+- Corrección: un archivo de autor ya no se combina con el filtro manual de autores, combinación que podía producir resultados siempre vacíos.
+- Corrección: los assets ahora se registran también en el hook del editor de Elementor, donde `wp_enqueue_scripts` no se ejecuta.
+- Rendimiento: la invalidación de caché usa una versión incremental en lugar de un `DELETE` directo sobre la tabla de opciones, lo que además funciona con object cache persistente.
+- Rendimiento: la invalidación ignora revisiones, autoguardados y borradores automáticos, y se ejecuta una sola vez por petición.
+- Rendimiento: el layout Compact ya no genera el extracto ni el enlace "Leer más" que el CSS ocultaba.
+- Robustez: `sanitize_settings()` fuerza valores escalares antes de pasarlos a los sanitizadores.
+- El control "Excerpt Words" en 0 ahora sí oculta el extracto, en lugar de revertir silenciosamente a 30 palabras.
 
 ### 2.0.0
 

@@ -791,3 +791,220 @@
 		height: 200px;
 	}
 }
+
+/* --- Listado de autores --- */
+
+/*
+ * Tres plantillas sobre el mismo marcado: lista, tarjetas y compacto. Los
+ * colores salen de variables para que los controles de Elementor puedan
+ * pisarlos sin pelear con la especificidad.
+ */
+.premium-author-list {
+	--wpmb-author-gap: 16px;
+	--wpmb-author-divider: #e6e6e3;
+	--wpmb-author-hover: rgba(15, 23, 42, .03);
+
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.premium-author-list .author-item {
+	margin: 0;
+	list-style: none;
+}
+
+.premium-author-list .author-item__content {
+	min-width: 0;
+}
+
+.premium-author-list .author-item__name {
+	margin: 0 0 3px;
+	line-height: 1.3;
+	font-weight: 600;
+}
+
+.premium-author-list .author-item__name a {
+	text-decoration: none;
+	color: inherit;
+	transition: color .15s ease;
+}
+
+.premium-author-list .author-item__bio {
+	margin: 0 0 4px;
+	font-size: 13px;
+	line-height: 1.5;
+	opacity: .85;
+}
+
+.premium-author-list .author-item__post a {
+	text-decoration: none;
+	transition: color .15s ease;
+}
+
+.premium-author-list .author-item__meta {
+	margin-top: 4px;
+	font-size: 12px;
+	opacity: .75;
+}
+
+/* El avatar nunca se encoge cuando el titulo ocupa dos lineas. */
+.premium-author-list .author-item__avatar {
+	flex: 0 0 auto;
+	display: block;
+	line-height: 0;
+}
+
+.premium-author-list .author-item__avatar img {
+	display: block;
+	max-width: none;
+	object-fit: cover;
+	border-radius: 50%;
+	box-shadow: 0 0 0 1px rgba(17, 24, 39, .08);
+}
+
+/* --- Plantilla: lista --- */
+
+.premium-author-list--list .author-item {
+	display: flex;
+	align-items: flex-start;
+	gap: 14px;
+	padding: var(--wpmb-author-gap) 8px;
+	border-bottom: 1px solid var(--wpmb-author-divider);
+	border-radius: 6px;
+	transition: background-color .15s ease;
+}
+
+.premium-author-list--list .author-item:hover {
+	background-color: var(--wpmb-author-hover);
+}
+
+.premium-author-list--list .author-item:last-child {
+	border-bottom: 0;
+}
+
+.premium-author-list--list .author-item__name {
+	font-size: 16px;
+}
+
+.premium-author-list--list .author-item__post {
+	font-size: 14px;
+	line-height: 1.45;
+}
+
+/* --- Plantilla: tarjetas --- */
+
+.premium-author-list--cards {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--wpmb-author-gap);
+}
+
+.premium-author-list--cards .author-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	padding: 20px 16px;
+	border: 1px solid var(--wpmb-author-divider);
+	border-radius: 12px;
+	transition: box-shadow .18s ease, transform .18s ease;
+}
+
+.premium-author-list--cards .author-item:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 8px 22px rgba(17, 24, 39, .08);
+}
+
+.premium-author-list--cards .author-item__avatar {
+	margin-bottom: 10px;
+}
+
+.premium-author-list--cards .author-item__name {
+	font-size: 14px;
+	margin-bottom: 6px;
+}
+
+/* Titulos de distinto largo no deben desalinear la grilla. */
+.premium-author-list--cards .author-item__post {
+	font-size: 13px;
+	line-height: 1.45;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.premium-author-list--cards .author-item__meta {
+	order: -1;
+	margin: 0 0 8px;
+	padding: 2px 9px;
+	border-radius: 999px;
+	background: var(--wpmb-author-hover);
+	font-size: 11px;
+}
+
+.premium-author-list--cards .author-item__bio {
+	font-size: 12.5px;
+}
+
+/* --- Plantilla: compacto --- */
+
+.premium-author-list--compact .author-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 6px;
+	border-bottom: 1px solid var(--wpmb-author-divider);
+}
+
+.premium-author-list--compact .author-item:last-child {
+	border-bottom: 0;
+}
+
+.premium-author-list--compact .author-item__name {
+	font-size: 13px;
+	margin-bottom: 1px;
+	line-height: 1.25;
+}
+
+/* Una sola linea: en una barra lateral angosta el titulo se corta con puntos. */
+.premium-author-list--compact .author-item__post {
+	font-size: 12.5px;
+	line-height: 1.35;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.premium-author-list--compact .author-item__bio,
+.premium-author-list--compact .author-item__meta {
+	font-size: 11.5px;
+	margin-top: 2px;
+}
+
+/* --- Sin divisorias --- */
+
+.premium-author-list--no-dividers .author-item {
+	border-bottom: 0;
+}
+
+/*
+ * Las columnas de la plantilla de tarjetas las gobierna el control responsive
+ * de Elementor, que emite sus propias media queries. No se duplican aquí para
+ * no dejar dos reglas compitiendo por el mismo breakpoint.
+ */
+
+@media (max-width: 480px) {
+	.premium-author-list--list .author-item {
+		gap: 11px;
+	}
+
+	.premium-author-list--list .author-item__name {
+		font-size: 15px;
+	}
+
+	.premium-author-list--list .author-item__post {
+		font-size: 13px;
+	}
+}

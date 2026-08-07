@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WP Multi-Post Type Blog Block for Elementor
  * Description: Un bloque personalizado de Elementor que permite mostrar posts de múltiples post types con filtros de taxonomía, autores, paginación avanzada (AJAX Cargar Más, Scroll Infinito) y un diseño premium mobile-friendly.
- * Version: 2.5.0
+ * Version: 2.7.0
  * Author: Voz Catolica
  * Text Domain: wp-multi-post-type-blog
  * Requires Plugins: elementor
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'WP_MULTIPOST_BLOG_VERSION', '2.5.0' );
+define( 'WP_MULTIPOST_BLOG_VERSION', '2.7.0' );
 define( 'WP_MULTIPOST_BLOG_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WP_MULTIPOST_BLOG_URL', plugin_dir_url( __FILE__ ) );
 define( 'WP_MULTIPOST_BLOG_AJAX_NONCE', 'wp_multipost_blog_ajax_nonce' );
@@ -321,6 +321,74 @@ class Utils {
 			'archive_author_id'    => $archive_author_id,
 			'layout_type'          => $layout_type,
 			'image_fallback'       => $image_fallback,
+		);
+	}
+
+	/**
+	 * Parse a comma separated list of user IDs.
+	 *
+	 * @param array  $settings Raw settings.
+	 * @param string $key      Setting key.
+	 * @return array
+	 */
+	public static function user_id_list( $settings, $key ) {
+		$raw = (string) self::scalar_value( $settings, $key, '' );
+
+		if ( '' === trim( $raw ) ) {
+			return array();
+		}
+
+		return array_values( array_unique( self::sanitize_array( preg_split( '/[\s,]+/', $raw ), 'absint' ) ) );
+	}
+
+	/**
+	 * Sanitize the settings of the author list widget.
+	 *
+	 * @param array $settings Raw widget settings.
+	 * @return array
+	 */
+	public static function sanitize_author_settings( $settings ) {
+		$settings = is_array( $settings ) ? $settings : array();
+
+		$post_types = ! empty( $settings['post_types'] ) ? self::sanitize_array( (array) $settings['post_types'], 'sanitize_key' ) : array( 'post' );
+		$post_types = self::validate_post_types( $post_types );
+
+		$roles     = ! empty( $settings['roles'] ) ? self::sanitize_array( (array) $settings['roles'], 'sanitize_key' ) : array();
+		$known     = array_keys( wp_roles()->get_names() );
+		$roles     = array_values( array_intersect( $roles, $known ) );
+
+		$orderby = sanitize_key( self::scalar_value( $settings, 'orderby', 'recent_activity' ) );
+		if ( ! in_array( $orderby, array( 'recent_activity', 'post_count', 'name', 'random' ), true ) ) {
+			$orderby = 'recent_activity';
+		}
+
+		$order = strtoupper( sanitize_key( self::scalar_value( $settings, 'order', 'DESC' ) ) );
+
+		$layout = sanitize_key( self::scalar_value( $settings, 'layout', 'list' ) );
+		if ( ! in_array( $layout, array( 'list', 'cards', 'compact' ), true ) ) {
+			$layout = 'list';
+		}
+
+		return array(
+			'layout'          => $layout,
+			'post_types'      => $post_types,
+			'roles'           => $roles,
+			'number'          => max( 1, min( 100, intval( self::scalar_value( $settings, 'number', 8 ) ) ) ),
+			'min_posts'       => max( 1, min( 500, intval( self::scalar_value( $settings, 'min_posts', 1 ) ) ) ),
+			'orderby'         => $orderby,
+			'order'           => 'ASC' === $order ? 'ASC' : 'DESC',
+			'include_users'   => self::user_id_list( $settings, 'include_users' ),
+			'exclude_users'   => self::user_id_list( $settings, 'exclude_users' ),
+			'show_avatar'     => self::sanitize_switch( $settings, 'show_avatar', 'yes' ),
+			'avatar_size'     => max( 16, min( 300, intval( self::scalar_value( $settings, 'avatar_size', 56 ) ) ) ),
+			'show_name'       => self::sanitize_switch( $settings, 'show_name', 'yes' ),
+			'link_to'         => self::key_or_default( $settings, 'link_to', 'author_page' ),
+			'show_last_post'  => self::sanitize_switch( $settings, 'show_last_post', 'yes' ),
+			'show_post_date'  => self::sanitize_switch( $settings, 'show_post_date', 'no' ),
+			'show_post_count' => self::sanitize_switch( $settings, 'show_post_count', 'no' ),
+			'show_bio'        => self::sanitize_switch( $settings, 'show_bio', 'no' ),
+			'bio_length'      => max( 20, min( 600, intval( self::scalar_value( $settings, 'bio_length', 120 ) ) ) ),
+			'show_dividers'   => self::sanitize_switch( $settings, 'show_dividers', 'yes' ),
 		);
 	}
 

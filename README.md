@@ -81,6 +81,25 @@ La firma de configuracion evita que un visitante modifique manualmente los setti
 
 ## Changelog
 
+### 2.7.0
+
+- Tres plantillas para el widget de autores, seleccionables desde el editor:
+  - **Lista** (por defecto): avatar a la izquierda, nombre, última entrada y metadatos. Es el diseño de referencia.
+  - **Tarjetas**: grilla con avatar centrado, la cantidad de entradas como píldora arriba del nombre y el título recortado a dos líneas para que las tarjetas no se desalineen. Pensada para una página de autores.
+  - **Compacto**: avatar chico y título en una sola línea con puntos suspensivos. Pensada para barra lateral.
+- Control responsive de columnas para la plantilla de tarjetas, con 3 / 2 / 1 por defecto en escritorio, tableta y móvil.
+- Las líneas divisorias se desactivan solas en la plantilla de tarjetas, que ya se separan por su propio borde.
+- Los colores salen de variables CSS para que los controles de estilo de Elementor los pisen sin pelear con la especificidad.
+
+### 2.6.0
+
+- Nuevo widget **Premium Author List**: lista autores con su última entrada, avatar, biografía recortada y cantidad de entradas.
+- A diferencia de los widgets de avatares habituales, la "última entrada" se resuelve sobre **todos los tipos de contenido seleccionados**, así que descargas, libros del catálogo y documentos cuentan como actividad igual que las entradas del blog.
+- Filtros: roles, lista blanca y lista negra de IDs de usuario, mínimo de entradas publicadas y cantidad máxima. La lista blanca gana sobre el filtro de roles, por ser una selección deliberada.
+- Orden por actividad reciente, cantidad de entradas, nombre o aleatorio, ascendente o descendente.
+- Rendimiento: el conjunto de candidatos se arma desde la tabla de entradas y no desde la de usuarios. El sitio tiene miles de suscriptores y clientes pero solo unas decenas han publicado, así que agrupar primero por autor deja la comprobación de roles corriendo sobre decenas de usuarios en lugar de miles. Son dos consultas en total, con caché de 15 minutos.
+- El orden aleatorio no se cachea, para que no quede congelado.
+
 ### 2.5.0
 
 - Nuevo control "Categoría de la etiqueta", con dos opciones: la categoría superior (por defecto) o la más específica.

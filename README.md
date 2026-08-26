@@ -81,6 +81,13 @@ La firma de configuracion evita que un visitante modifique manualmente los setti
 
 ## Changelog
 
+### 2.8.1
+
+- El número de lecturas que se muestra sigue al criterio de ordenamiento. Un
+  bloque de «lo más leído esta semana» mostraba el total histórico junto a un
+  orden semanal: el segundo de la lista exhibía 17.364 lecturas y el primero
+  446, y el orden parecía roto.
+
 ### 2.8.0
 
 - Las vistas ya no se leen de JNews View Counter sino de **Voz Católica

@@ -67,6 +67,8 @@ class Blog_Archive_Widget extends Blog_Posts_Widget {
 
 			// Views live in their own tables, so they need a separate batch query.
 			if ( 'yes' === $settings['show_views'] ) {
+				// El archivo siempre muestra totales históricos: no ordena por vistas.
+				\WpMultiPostTypeBlog\Views_Source::set_display_range( array() );
 				self::prime_views_cache( $query->posts );
 			}
 		}

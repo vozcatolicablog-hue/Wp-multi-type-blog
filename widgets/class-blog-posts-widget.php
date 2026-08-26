@@ -953,6 +953,16 @@ class Blog_Posts_Widget extends Widget_Base {
 	 *
 	 * @param array $posts Post objects or post IDs.
 	 */
+	/**
+	 * Vacía la caché de vistas.
+	 *
+	 * La llama Views_Source al cambiar el alcance de los números: lo que estaba
+	 * cacheado corresponde a otro período y volvería a servirse tal cual.
+	 */
+	public static function reset_views_cache() {
+		self::$views_cache = array();
+	}
+
 	public static function prime_views_cache( $posts ) {
 		$post_ids = array();
 
@@ -1721,6 +1731,8 @@ class Blog_Posts_Widget extends Widget_Base {
 
 			// Views live in their own tables, so they need a separate batch query.
 			if ( 'yes' === $settings['show_views'] ) {
+				// El alcance del número mostrado sigue al del ordenamiento.
+				\WpMultiPostTypeBlog\Views_Source::set_display_range( $settings );
 				self::prime_views_cache( $query->posts );
 			}
 		}

@@ -44,6 +44,56 @@ class Views_Source {
 	}
 
 	/**
+	 * Días que abarca el número que se MUESTRA, o null para el total histórico.
+	 *
+	 * @var int|null
+	 */
+	private static $display_range = null;
+
+	/**
+	 * Alinea el número mostrado con el criterio de ordenamiento.
+	 *
+	 * Un bloque titulado «lo más leído esta semana» que ordena por la semana
+	 * pero muestra el total histórico se contradice a sí mismo: el segundo de
+	 * la lista puede exhibir diecisiete mil lecturas y el primero cuatrocientas,
+	 * y el lector concluye, con razón, que el orden está mal. Cuando el orden
+	 * mira un período, el número también.
+	 *
+	 * @param array $settings Ajustes saneados del widget.
+	 */
+	public static function set_display_range( $settings ) {
+		$mode = isset( $settings['orderby'] ) ? $settings['orderby'] : '';
+
+		if ( in_array( $mode, array( 'vca_views_period', 'vca_trending' ), true ) ) {
+			$days = isset( $settings['views_range'] ) ? absint( $settings['views_range'] ) : 30;
+			self::$display_range = max( 1, min( 3653, $days ) );
+		} else {
+			self::$display_range = null;
+		}
+
+		// La caché del widget se llenó con números de otro alcance.
+		self::flush_widget_cache();
+	}
+
+	/** Rango vigente, en días, o null si se muestran totales históricos. */
+	public static function display_range() {
+		return self::$display_range;
+	}
+
+	/**
+	 * Vacía la caché de vistas del widget al cambiar el alcance.
+	 *
+	 * Sin esto, dos widgets en la misma página con alcances distintos se
+	 * quedarían con los números del primero que se renderizó.
+	 */
+	private static function flush_widget_cache() {
+		if ( class_exists( '\\WpMultiPostTypeBlog\\Widgets\\Blog_Posts_Widget' )
+			&& method_exists( '\\WpMultiPostTypeBlog\\Widgets\\Blog_Posts_Widget', 'reset_views_cache' ) ) {
+			\WpMultiPostTypeBlog\Widgets\Blog_Posts_Widget::reset_views_cache();
+		}
+	}
+
+	/**
 	 * ¿Está disponible el contador nuevo?
 	 *
 	 * Se comprueban las funciones concretas que se van a usar, no la constante
@@ -73,6 +123,12 @@ class Views_Source {
 		}
 
 		if ( self::analytics_available() ) {
+			if ( null !== self::$display_range && method_exists( '\\VCA\\Query', 'views_for' ) ) {
+				list( $from, $to ) = self::range_bounds();
+
+				return \VCA\Query::views_for( $post_ids, $from, $to );
+			}
+
 			return \VCA\Query::totals_for( $post_ids );
 		}
 
@@ -93,10 +149,23 @@ class Views_Source {
 		}
 
 		if ( self::analytics_available() ) {
-			return (int) \VCA\Query::views( $post_id, 'all' );
+			return (int) \VCA\Query::views( $post_id, null === self::$display_range ? 'all' : self::$display_range );
 		}
 
 		return self::legacy_views_for_post( $post_id );
+	}
+
+	/**
+	 * Fechas de inicio y fin del rango vigente.
+	 *
+	 * @return array{0:string,1:string}
+	 */
+	private static function range_bounds() {
+		$days = max( 1, (int) self::$display_range );
+		$to   = current_time( 'Y-m-d' );
+		$from = gmdate( 'Y-m-d', strtotime( $to ) - ( $days - 1 ) * DAY_IN_SECONDS );
+
+		return array( $from, $to );
 	}
 
 	/* ---------------------------------------------------------------------

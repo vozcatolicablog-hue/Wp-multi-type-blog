@@ -81,6 +81,20 @@ La firma de configuracion evita que un visitante modifique manualmente los setti
 
 ## Changelog
 
+### 2.8.0
+
+- Las vistas ya no se leen de JNews View Counter sino de **Voz Católica
+  Analytics**. JNews queda como respaldo automático, así que esta versión se
+  puede desplegar antes o después de desactivar el contador viejo.
+- Nuevos ordenamientos: **Más leídos (histórico)**, **Más leídos (del período)**
+  y **En tendencia (crecimiento)**. Hasta ahora el único orden por popularidad
+  era por cantidad de comentarios.
+- Nuevos controles «Período de las vistas» y «Mínimo de lecturas», visibles
+  sólo cuando el orden elegido los usa.
+- El acceso a las vistas se centraliza en `includes/class-views-source.php`; los
+  widgets ya no saben de qué contador salen los números.
+- `prompt-vistas.md` reescrito: describía JNews como el contador del sitio.
+
 ### 2.7.0
 
 - Tres plantillas para el widget de autores, seleccionables desde el editor:

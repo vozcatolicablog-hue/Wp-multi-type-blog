@@ -325,8 +325,36 @@ class Blog_Posts_Widget extends Widget_Base {
 					'rand'          => esc_html__( 'Random', 'wp-multi-post-type-blog' ),
 					'comment_count' => esc_html__( 'Popular (Comments)', 'wp-multi-post-type-blog' ),
 					'menu_order'    => esc_html__( 'Menu Order', 'wp-multi-post-type-blog' ),
+					'vca_views'           => esc_html__( 'Más leídos (histórico)', 'wp-multi-post-type-blog' ),
+					'vca_views_period'    => esc_html__( 'Más leídos (del período)', 'wp-multi-post-type-blog' ),
+					'vca_trending'        => esc_html__( 'En tendencia (crecimiento)', 'wp-multi-post-type-blog' ),
 				],
 				'description' => esc_html__( 'Random ordering can be slower on large sites.', 'wp-multi-post-type-blog' ),
+			]
+		);
+
+		$this->add_control(
+			'views_range',
+			[
+				'label'       => esc_html__( 'Período de las vistas (días)', 'wp-multi-post-type-blog' ),
+				'type'        => Controls_Manager::NUMBER,
+				'default'     => 30,
+				'min'         => 1,
+				'max'         => 3653,
+				'condition'   => [ 'orderby' => [ 'vca_views_period', 'vca_trending' ] ],
+				'description' => esc_html__( 'Ventana que se mide. Para tendencias se compara contra el período anterior de la misma duración.', 'wp-multi-post-type-blog' ),
+			]
+		);
+
+		$this->add_control(
+			'views_min',
+			[
+				'label'       => esc_html__( 'Mínimo de lecturas', 'wp-multi-post-type-blog' ),
+				'type'        => Controls_Manager::NUMBER,
+				'default'     => 20,
+				'min'         => 0,
+				'condition'   => [ 'orderby' => 'vca_trending' ],
+				'description' => esc_html__( 'Evita que una nota que pasó de 1 a 20 lecturas encabece el ranking por haber crecido un 1900%.', 'wp-multi-post-type-blog' ),
 			]
 		);
 
@@ -911,35 +939,17 @@ class Blog_Posts_Widget extends Widget_Base {
 	private static $views_table = null;
 
 	/**
-	 * Locate the JNews View Counter totals table.
-	 *
-	 * JNews View Counter is a fork of WordPress Popular Posts, hence the table name.
-	 *
-	 * @return string Table name, or '' when it does not exist.
-	 */
-	private static function get_views_table() {
-		if ( null !== self::$views_table ) {
-			return self::$views_table;
-		}
-
-		global $wpdb;
-		$table = $wpdb->prefix . 'popularpostsdata';
-		$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
-
-		self::$views_table = ( $found === $table ) ? $table : '';
-
-		return self::$views_table;
-	}
-
-	/**
 	 * Preload view totals for a set of posts with a single query.
 	 *
-	 * JNews View Counter stores views in its own tables, not in postmeta, so
-	 * update_postmeta_cache() does not cover them and reading them post by post
-	 * would add one query per row rendered.
+	 * Las vistas no viven en postmeta, así que update_postmeta_cache() no las
+	 * cubre y leerlas post por post agregaría una consulta por fila renderizada.
 	 *
-	 * Catalog books are skipped: they use a separate counter that consolidates into
-	 * postmeta, which update_postmeta_cache() already warmed.
+	 * De dónde salen los números lo decide Views_Source: el contador nuevo si
+	 * está disponible, JNews como respaldo. Este widget ya no sabe nada de
+	 * ninguno de los dos.
+	 *
+	 * Los libros del catálogo se saltean: usan un contador aparte que consolida
+	 * en postmeta, que update_postmeta_cache() ya precalentó.
 	 *
 	 * @param array $posts Post objects or post IDs.
 	 */
@@ -961,31 +971,13 @@ class Blog_Posts_Widget extends Widget_Base {
 			return;
 		}
 
-		$table = self::get_views_table();
-		if ( '' === $table ) {
-			return;
-		}
-
-		global $wpdb;
-		$placeholders = implode( ', ', array_fill( 0, count( $post_ids ), '%d' ) );
-
-		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is built from $wpdb->prefix, placeholders are generated from the ID count.
-				"SELECT postid, pageviews FROM {$table} WHERE postid IN ( {$placeholders} )",
-				$post_ids
-			)
-		);
-
-		// A post with no row has simply never been visited.
+		// Un post sin fila simplemente nunca fue visitado.
 		foreach ( $post_ids as $post_id ) {
 			self::$views_cache[ $post_id ] = 0;
 		}
 
-		if ( ! empty( $rows ) ) {
-			foreach ( $rows as $row ) {
-				self::$views_cache[ absint( $row->postid ) ] = absint( $row->pageviews );
-			}
+		foreach ( \WpMultiPostTypeBlog\Views_Source::totals_for( $post_ids ) as $post_id => $views ) {
+			self::$views_cache[ (int) $post_id ] = (int) $views;
 		}
 	}
 
@@ -996,23 +988,7 @@ class Blog_Posts_Widget extends Widget_Base {
 	 * @return int
 	 */
 	private static function get_views_fallback( $post_id ) {
-		if ( function_exists( 'jnews_get_views' ) ) {
-			// Both arguments matter: without them the function returns the plugin's
-			// default range instead of the historical total, already formatted as a
-			// string, which intval() would then truncate at the thousands separator.
-			return (int) jnews_get_views( $post_id, 'all', false );
-		}
-
-		// Legacy meta keys from other counters. The 'better-views-count' meta is
-		// deliberately not read: it is stale and returns empty for recent posts.
-		foreach ( array( 'jeg_views', 'jnews_views', 'post_views_count' ) as $meta_key ) {
-			$views = get_post_meta( $post_id, $meta_key, true );
-			if ( $views ) {
-				return (int) $views;
-			}
-		}
-
-		return 0;
+		return \WpMultiPostTypeBlog\Views_Source::views_for_post( $post_id );
 	}
 
 	/**

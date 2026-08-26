@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WP Multi-Post Type Blog Block for Elementor
  * Description: Un bloque personalizado de Elementor que permite mostrar posts de múltiples post types con filtros de taxonomía, autores, paginación avanzada (AJAX Cargar Más, Scroll Infinito) y un diseño premium mobile-friendly.
- * Version: 2.7.0
+ * Version: 2.8.0
  * Author: Voz Catolica
  * Text Domain: wp-multi-post-type-blog
  * Requires Plugins: elementor
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'WP_MULTIPOST_BLOG_VERSION', '2.7.0' );
+define( 'WP_MULTIPOST_BLOG_VERSION', '2.8.0' );
 define( 'WP_MULTIPOST_BLOG_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WP_MULTIPOST_BLOG_URL', plugin_dir_url( __FILE__ ) );
 define( 'WP_MULTIPOST_BLOG_AJAX_NONCE', 'wp_multipost_blog_ajax_nonce' );
@@ -44,6 +44,12 @@ function wp_multipost_blog_init() {
 
 	// Loaded before the Elementor check: the fallback image lookup is used by the AJAX
 	// handler and the settings screen should exist even if Elementor is missing.
+	require_once WP_MULTIPOST_BLOG_PATH . 'includes/class-views-source.php';
+	// Antes de la comprobación de Elementor: el filtro que ordena por vistas
+	// tiene que estar enganchado también para el manejador AJAX de «cargar
+	// más», que arma su propia WP_Query sin pasar por el widget.
+	Views_Source::register();
+
 	require_once WP_MULTIPOST_BLOG_PATH . 'includes/class-admin-settings.php';
 	if ( is_admin() ) {
 		Admin_Settings::get_instance();
@@ -219,7 +225,10 @@ class Utils {
 	 * @return array
 	 */
 	public static function allowed_orderby() {
-		return array( 'date', 'title', 'rand', 'comment_count', 'menu_order' );
+		return array_merge(
+			array( 'date', 'title', 'rand', 'comment_count', 'menu_order' ),
+			Views_Source::order_modes()
+		);
 	}
 
 	/**
@@ -248,6 +257,14 @@ class Utils {
 			$exclude_ids_raw = (string) self::scalar_value( $settings, 'exclude_ids', '' );
 			$exclude_ids     = '' !== $exclude_ids_raw ? self::sanitize_array( preg_split( '/[\s,]+/', $exclude_ids_raw ), 'absint' ) : array();
 		}
+
+		// Ventana y piso del ordenamiento por vistas. Se acotan acá y no en el
+		// filtro SQL porque estos valores viajan firmados hasta el AJAX de
+		// «cargar más», donde ya no hay controles de Elementor que los limiten.
+		$views_range = absint( self::scalar_value( $settings, 'views_range', 30 ) );
+		$views_range = max( 1, min( 3653, $views_range ? $views_range : 30 ) );
+		$views_min   = absint( self::scalar_value( $settings, 'views_min', 20 ) );
+		$views_min   = min( 100000, $views_min );
 
 		$current_post_id = absint( self::scalar_value( $settings, 'current_post_id', 0 ) );
 		$archive_author_id = absint( self::scalar_value( $settings, 'archive_author_id', 0 ) );
@@ -296,6 +313,8 @@ class Utils {
 			'tax_relation'         => $tax_relation,
 			'orderby'              => $orderby,
 			'order'                => $order,
+			'views_range'          => $views_range,
+			'views_min'            => $views_min,
 			'posts_per_page'       => $posts_per_page,
 			'offset'               => $offset,
 			'exclude_ids'          => $exclude_ids,
@@ -595,6 +614,11 @@ class Utils {
 				$query_args['tax_query'] = $tax_query;
 			}
 		}
+
+		// Último paso a propósito: el orden por vistas puede fijar post__in
+		// (tendencias) y necesita ver los IDs ya excluidos y los tipos de
+		// contenido definitivos.
+		$query_args = Views_Source::apply_order( $query_args, $settings );
 
 		return $query_args;
 	}

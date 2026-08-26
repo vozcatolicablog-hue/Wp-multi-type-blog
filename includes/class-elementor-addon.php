@@ -54,9 +54,11 @@ class Elementor_Addon {
 		require_once WP_MULTIPOST_BLOG_PATH . 'widgets/class-blog-posts-widget.php';
 		require_once WP_MULTIPOST_BLOG_PATH . 'widgets/class-blog-archive-widget.php';
 		require_once WP_MULTIPOST_BLOG_PATH . 'widgets/class-author-list-widget.php';
+		require_once WP_MULTIPOST_BLOG_PATH . 'widgets/class-section-heading-widget.php';
 		$widgets_manager->register( new \WpMultiPostTypeBlog\Widgets\Blog_Posts_Widget() );
 		$widgets_manager->register( new \WpMultiPostTypeBlog\Widgets\Blog_Archive_Widget() );
 		$widgets_manager->register( new \WpMultiPostTypeBlog\Widgets\Author_List_Widget() );
+		$widgets_manager->register( new \WpMultiPostTypeBlog\Widgets\Section_Heading_Widget() );
 	}
 
 	/**

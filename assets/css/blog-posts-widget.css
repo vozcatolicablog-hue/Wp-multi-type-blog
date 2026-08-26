@@ -1008,3 +1008,68 @@
 		font-size: 13px;
 	}
 }
+
+/* ---------------------------------------------------------------------
+ * Encabezado de sección
+ *
+ * Reemplaza a `jeg_block_heading_6` del tema JNews. Los valores por defecto
+ * salen de medir el encabezado original ya renderizado en la portada, no de
+ * los ajustes guardados del widget: entre unos y otros había diferencias
+ * —18 px y peso 600 declarados contra 16 px y 700 en pantalla— porque la hoja
+ * del tema pisaba la tipografía de Elementor. Lo que importa es lo que se ve.
+ * ------------------------------------------------------------------ */
+
+.wpmptb-heading {
+	position: relative;
+	margin-bottom: 20px;
+	border-bottom: 2px solid #eee;
+}
+
+/* El segmento de color se apoya sobre el borde inferior, desbordándolo hacia
+   abajo su propio grosor, de modo que lo tapa en vez de sumarse a él. */
+.wpmptb-heading::after {
+	content: "";
+	display: block;
+	position: relative;
+	bottom: -2px;
+	width: 30px;
+	height: 2px;
+	background-color: #0091FC;
+}
+
+.wpmptb-heading__title {
+	margin: 0;
+	padding: 0;
+	font-size: 16px;
+	font-weight: 700;
+	/* `normal` y no un número: es lo que computa el encabezado del tema al que
+	   esto reemplaza, y fijar 1.4 lo hacía dos píxeles más alto por renglón. */
+	line-height: normal;
+	color: #083572;
+	text-transform: none;
+}
+
+.wpmptb-heading__icon {
+	display: inline-block;
+	margin-right: 8px;
+	font-size: 1em;
+	line-height: 1;
+	color: inherit;
+	vertical-align: baseline;
+}
+
+.wpmptb-heading__icon svg {
+	width: 1em;
+	height: 1em;
+	fill: currentColor;
+	vertical-align: -.1em;
+}
+
+/* La alineación viaja como clase en el contenedor, no se deduce del estilo del
+   título con `:has()`: el acento es un pseudo-elemento del contenedor y hacerlo
+   depender de un selector sobre un hijo es frágil sin ganar nada. */
+.wpmptb-heading--center .wpmptb-heading__title { text-align: center; }
+.wpmptb-heading--center::after { margin-left: auto; margin-right: auto; }
+
+.wpmptb-heading--right .wpmptb-heading__title { text-align: right; }
+.wpmptb-heading--right::after { margin-left: auto; }

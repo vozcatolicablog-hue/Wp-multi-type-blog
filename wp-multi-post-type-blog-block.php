@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WP Multi-Post Type Blog Block for Elementor
  * Description: Un bloque personalizado de Elementor que permite mostrar posts de múltiples post types con filtros de taxonomía, autores, paginación avanzada (AJAX Cargar Más, Scroll Infinito) y un diseño premium mobile-friendly.
- * Version: 2.8.1
+ * Version: 2.9.0
  * Author: Voz Catolica
  * Text Domain: wp-multi-post-type-blog
  * Requires Plugins: elementor
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'WP_MULTIPOST_BLOG_VERSION', '2.8.1' );
+define( 'WP_MULTIPOST_BLOG_VERSION', '2.9.0' );
 define( 'WP_MULTIPOST_BLOG_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WP_MULTIPOST_BLOG_URL', plugin_dir_url( __FILE__ ) );
 define( 'WP_MULTIPOST_BLOG_AJAX_NONCE', 'wp_multipost_blog_ajax_nonce' );

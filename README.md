@@ -81,6 +81,17 @@ La firma de configuracion evita que un visitante modifique manualmente los setti
 
 ## Changelog
 
+### 2.9.0
+
+- Nuevo widget **Encabezado de sección**, reemplazo del `jeg_block_heading_6`
+  del tema JNews: título con ícono, línea gris al pie y un segmento de color en
+  el extremo izquierdo.
+- No hereda las clases `jeg_*` ni la FontAwesome 4 del tema, que desaparecen
+  con él: usa clases propias y el control de íconos de Elementor.
+- Los valores por defecto salen de medir el encabezado original ya renderizado,
+  no de sus ajustes guardados: declaraban 18 px y peso 600, pero en pantalla la
+  hoja del tema imponía 16 px y 700.
+
 ### 2.8.1
 
 - El número de lecturas que se muestra sigue al criterio de ordenamiento. Un

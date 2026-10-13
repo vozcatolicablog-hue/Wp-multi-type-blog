@@ -82,25 +82,22 @@
 			}
 		}
 
-		// 3. Post Type Filter Tabs (for Archive Widget)
+		// 3. Post Type Filter Tabs (for Archive Widget) and topic chips (Sistema VC)
 		var activeFilterPostType = '';
+		var activeFilterTerm = '';
 		var $filters = $widget.find('.premium-blog-archive__filters .filter-tab');
-		
-		$filters.on('click', function(e) {
-			e.preventDefault();
-			var $clickedTab = $(this);
-			if ($clickedTab.hasClass('active') || isLoading) {
-				return;
-			}
-			
-			$filters.removeClass('active');
-			$clickedTab.addClass('active');
-			activeFilterPostType = $clickedTab.attr('data-post-type') || '';
-			
+		var $chips = $widget.find('.wpmb-filtros .wpmb-chip');
+		// Diseño de tarjetas: al filtrar, las primeras entradas vuelven como tarjetas.
+		var $cards = $widget.find('.wpmb-tarjetas');
+
+		/**
+		 * Vuelve a la página 1 con el filtro vigente.
+		 */
+		function resetAndReload() {
 			// Reset pagination state
 			currentPage = 0;
 			maxPages = 1;
-			
+
 			// 7.3: Fade out numerical pagination when filter tab is clicked
 			if (pagination === 'numbers') {
 				$widget.find('.numbers-pagination').fadeOut(200);
@@ -112,12 +109,39 @@
 			// The featured post belongs to the unfiltered query and AJAX only returns list
 			// items, so drop it instead of leaving a stale card above the filtered results.
 			// Reloading "Todos" returns that post as a regular list item, so nothing is lost.
-			$widget.find('.featured-post').remove();
+			$widget.find('.featured-post, .wpmb-hero').remove();
 
+			$list.attr('aria-busy', 'true');
 			$list.fadeOut(200, function() {
 				$list.empty().show();
 				loadMorePosts(true); // reset load
 			});
+		}
+
+		$filters.on('click', function(e) {
+			e.preventDefault();
+			var $clickedTab = $(this);
+			if ($clickedTab.hasClass('active') || isLoading) {
+				return;
+			}
+
+			$filters.removeClass('active');
+			$clickedTab.addClass('active');
+			activeFilterPostType = $clickedTab.attr('data-post-type') || '';
+			resetAndReload();
+		});
+
+		$chips.on('click', function(e) {
+			e.preventDefault();
+			var $chip = $(this);
+			if ($chip.hasClass('active') || isLoading) {
+				return;
+			}
+
+			$chips.removeClass('active').attr('aria-pressed', 'false');
+			$chip.addClass('active').attr('aria-pressed', 'true');
+			activeFilterTerm = $chip.attr('data-term') || '';
+			resetAndReload();
 		});
 
 		/**
@@ -146,15 +170,21 @@
 					page: nextPage,
 					signature: settingsSignature,
 					settings: settings,
-					filter_post_type: activeFilterPostType
+					filter_post_type: activeFilterPostType,
+					filter_term: activeFilterTerm,
+					reset: isReset ? 1 : 0
 				},
 				success: function(response) {
 					if (response.success && response.data) {
 						var responseMaxPages = parseInt(response.data.max_pages, 10) || 0;
 						maxPages = responseMaxPages;
-						
+
 						if (isReset) {
 							currentPage = 0;
+
+							if ($cards.length && typeof response.data.cards_html === 'string') {
+								$cards.html(response.data.cards_html);
+							}
 						}
 
 						if (response.data.html) {
@@ -183,8 +213,13 @@
 						} else if (isReset) {
 							// 3.3: Use jQuery .text() to prevent potential XSS injection of dynamic server strings
 							var noPostsText = settings.no_posts_text || wpMultipostBlogAjax.no_posts_text || 'No se encontraron publicaciones.';
-							var $noPostsDiv = $('<div>').addClass('premium-blog-no-posts').text(noPostsText);
-							$list.html($noPostsDiv);
+							// Dentro de una lista ordenada el aviso tiene que ser un <li>.
+							var noPostsTag = $list.is('ol, ul') ? '<li>' : '<div>';
+							var hasCards = $cards.length && $.trim($cards.html()) !== '';
+							if (!hasCards) {
+								var $noPostsDiv = $(noPostsTag).addClass('premium-blog-no-posts').text(noPostsText);
+								$list.html($noPostsDiv);
+							}
 						}
 
 						updateLoaderVisibility();
@@ -198,6 +233,14 @@
 				},
 				complete: function() {
 					isLoading = false;
+					$list.removeAttr('aria-busy');
+
+					// Tarjetas sin renglones dejan la columna «Más artículos» oculta; si el
+					// filtro trajo renglones, se vuelve a mostrar.
+					if ($cards.length && $list.children('.list-post-item, .wpmb-item').length) {
+						$widget.find('.wpmb-mas').prop('hidden', false);
+						$widget.find('.wpmb-art').removeClass('wpmb-art--solo-tarjetas');
+					}
 					if (pagination === 'load_more' && $btn && $btn.length) {
 						$btn.removeClass('is-loading');
 					}

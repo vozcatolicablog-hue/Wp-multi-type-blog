@@ -64,10 +64,19 @@ El primer post de la primera pagina se renderiza como destacado. El resto se mue
 wp-multi-post-type-blog-block.php
 includes/
   class-elementor-addon.php
+  class-admin-settings.php
+  class-views-source.php
 widgets/
   class-blog-posts-widget.php
+  class-blog-archive-widget.php
+  class-author-list-widget.php
+  class-section-heading-widget.php
+  class-recent-comments-widget.php
+  trait-vc-layouts.php
 assets/
   css/blog-posts-widget.css
+  css/sistema.css
+  fonts/ (Cormorant Garamond 500/600, Inter variable)
   js/blog-posts-widget.js
   images/placeholder.jpg
 walkthrough.md
@@ -79,7 +88,48 @@ El endpoint AJAX valida nonce, firma de configuracion, post types publicos, taxo
 
 La firma de configuracion evita que un visitante modifique manualmente los settings del widget en el navegador para forzar consultas distintas a las renderizadas por Elementor.
 
+## Sistema de diseño de Voz Católica (3.0.0)
+
+Los widgets ofrecen diseños «Sistema VC» que reproducen los mockups aprobados de la portada (`propuesta-home-v4`) y de la página de autor (`propuesta-autor`). Usan Cormorant Garamond 500/600 e Inter autoalojadas y leen los colores del Kit (`--azul`, `--noche`, `--oro`, `--pergamino`, `--papel`, `--tinta`, `--linea`) con los valores del sistema como respaldo. Todo cuelga de `.wpmb-ds` en `assets/css/sistema.css`, que solo se carga donde hay un widget.
+
+Cómo armar cada bloque del mockup:
+
+| Bloque del mockup | Widget | Ajustes clave |
+|---|---|---|
+| «Lo último en el blog» (portada partida) | Premium Multi-Post Blog | Layout `Sistema VC · Lista con miniatura`, 1 entrada, destacado activo, etiqueta del título H1 si es la única de la página |
+| «Más publicaciones» con chips | Premium Multi-Post Blog | Mismo layout, destacado apagado, «Evitar repetir destacados», chips de filtro, enlace al pie «Ver todo lo publicado» |
+| «Lo más leído» | Premium Multi-Post Blog | Layout `Sistema VC · Ranking numerado`, orden «Más leídos», sin fecha |
+| «Últimos comentarios» | Últimos comentarios (nuevo) | 3 comentarios; muestra solo el primer nombre |
+| «Quienes escriben en Voz Católica» | Premium Author List | Layout `Sistema VC · Franja`, 5 autores, enlace «Ver todos los autores» |
+| «Artículos» de la página de autor | Premium Multi-Post Archive | Layout `Sistema VC · Tarjetas y lista`, bajada, enlace «Ver los {total} artículos» en cabecera y pie |
+| «Otros autores del blog» | Premium Author List | Layout `Sistema VC · Chips`, «Ocultar al autor de la página» |
+
+Los fondos pergamino de las franjas (autores, biblioteca) son del contenedor de Elementor, no del widget.
+
 ## Changelog
+
+### 3.0.3
+
+- En los resultados de búsqueda, `[wpmb_archivo_cabecera]` repite el buscador con lo buscado, para afinar sin volver atrás; conserva `post_type`.
+
+### 3.0.2
+
+- El widget de archivo filtra por el término que se está viendo (categoría, etiqueta o taxonomía) y por el texto buscado. Antes solo reconocía el autor, así que cada categoría listaba todas las entradas del sitio.
+- Shortcode `[wpmb_archivo_cabecera]`: migas, antetítulo (Categoría, Etiqueta, Búsqueda), título, descripción, total de publicaciones y subcategorías como chips.
+
+### 3.0.1
+
+- Diseño clásico: la miniatura de la lista es fluida (hasta 320 px, nunca más del 38 % de la fila). En el archivo de categoría y de autor, con barra lateral, la columna de entradas es estrecha y la miniatura fija de 320 px dejaba el texto en ~185 px, con títulos de 6 renglones.
+
+### 3.0.0
+
+- Base: la 2.9.0 que estaba en producción (orden por vistas con Voz Católica Analytics y widget «Encabezado de sección»), que no estaba en el repositorio.
+- Tres layouts del sistema de diseño para los widgets de entradas: **Lista con miniatura** (destacado partido 50/50 con antetítulo, bajada, botón y firma con foto, tema, fecha y minutos de lectura; filas con miniatura 16:10), **Tarjetas y lista** (primera tarjeta a todo el ancho con extracto, el resto de a dos, y renglones «Más artículos» con fecha corta) y **Ranking numerado** (puestos en oro con contador CSS que sigue correlativo al cargar más).
+- Encabezado de bloque: título, bajada, enlace «ver todo» en la cabecera o como botón al pie, con `{total}`.
+- Chips de tema que filtran por AJAX sin recargar. Solo se aceptan los términos que el widget ofrece (viajan firmados); en tarjetas, el filtro vuelve a pintar las primeras entradas como tarjetas.
+- Widget de autores: layouts **Franja** (tarjeta-enlace con la última entrada, desplazable en móvil) y **Chips**, encabezado propio y opción para ocultar al autor del archivo que se está viendo.
+- Widget nuevo **Últimos comentarios**: cita recta entre «», recortada a tres renglones; primer nombre del lector; caché de 10 minutos que se invalida al aprobar o retirar un comentario.
+- Los diseños clásico y compacto no cambian. Sus controles de estilo se ocultan en los layouts del sistema y Elementor deja de emitir su CSS ahí.
 
 ### 2.9.0
 

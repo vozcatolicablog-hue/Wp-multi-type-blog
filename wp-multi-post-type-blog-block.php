@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WP Multi-Post Type Blog Block for Elementor
  * Description: Un bloque personalizado de Elementor que permite mostrar posts de múltiples post types con filtros de taxonomía, autores, paginación avanzada (AJAX Cargar Más, Scroll Infinito) y un diseño premium mobile-friendly.
- * Version: 2.9.0
+ * Version: 3.0.3
  * Author: Voz Catolica
  * Text Domain: wp-multi-post-type-blog
  * Requires Plugins: elementor
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'WP_MULTIPOST_BLOG_VERSION', '2.9.0' );
+define( 'WP_MULTIPOST_BLOG_VERSION', '3.0.3' );
 define( 'WP_MULTIPOST_BLOG_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WP_MULTIPOST_BLOG_URL', plugin_dir_url( __FILE__ ) );
 define( 'WP_MULTIPOST_BLOG_AJAX_NONCE', 'wp_multipost_blog_ajax_nonce' );
@@ -49,6 +49,9 @@ function wp_multipost_blog_init() {
 	// tiene que estar enganchado también para el manejador AJAX de «cargar
 	// más», que arma su propia WP_Query sin pasar por el widget.
 	Views_Source::register();
+
+	require_once WP_MULTIPOST_BLOG_PATH . 'includes/class-archive-heading.php';
+	Archive_Heading::register();
 
 	require_once WP_MULTIPOST_BLOG_PATH . 'includes/class-admin-settings.php';
 	if ( is_admin() ) {
@@ -268,11 +271,18 @@ class Utils {
 
 		$current_post_id = absint( self::scalar_value( $settings, 'current_post_id', 0 ) );
 		$archive_author_id = absint( self::scalar_value( $settings, 'archive_author_id', 0 ) );
+		$archive_search    = substr( sanitize_text_field( (string) self::scalar_value( $settings, 'archive_search', '' ) ), 0, 100 );
 
 		$layout_type = sanitize_key( self::scalar_value( $settings, 'layout_type', 'classic' ) );
-		if ( ! in_array( $layout_type, array( 'classic', 'compact' ), true ) ) {
+		if ( ! in_array( $layout_type, self::layout_types(), true ) ) {
 			$layout_type = 'classic';
 		}
+
+		// Chips de filtro del sistema de diseño: solo términos de taxonomías públicas
+		// con el formato taxonomía:slug. Viajan firmados, y el AJAX acepta únicamente
+		// un término de esta lista, así que un visitante no puede filtrar por otro.
+		$chip_terms = ! empty( $settings['chip_terms'] ) ? self::sanitize_array( (array) $settings['chip_terms'], 'sanitize_text_field' ) : array();
+		$chip_terms = array_values( array_filter( $chip_terms, array( __CLASS__, 'is_valid_term_key' ) ) );
 
 		// Last step of the image chain, reached only when the post has no featured image
 		// and its post type has no fallback image configured.
@@ -338,9 +348,56 @@ class Utils {
 			'columns'              => max( 1, min( 3, intval( self::scalar_value( $settings, 'columns', 1 ) ) ) ),
 			'pagination'           => $pagination,
 			'archive_author_id'    => $archive_author_id,
+			'archive_search'       => $archive_search,
 			'layout_type'          => $layout_type,
 			'image_fallback'       => $image_fallback,
+			'vc_read_text'         => self::text_or_default( $settings, 'vc_read_text', __( 'Leer el artículo', 'wp-multi-post-type-blog' ) ),
+			'featured_eyebrow'     => sanitize_text_field( (string) self::scalar_value( $settings, 'featured_eyebrow', '' ) ),
+			'show_reading_time'    => self::sanitize_switch( $settings, 'show_reading_time', 'yes' ),
+			'show_avatar'          => self::sanitize_switch( $settings, 'show_avatar', 'yes' ),
+			'chip_terms'           => $chip_terms,
+			'cards_count'          => max( 1, min( 6, intval( self::scalar_value( $settings, 'cards_count', 3 ) ) ) ),
+			'list_heading'         => self::text_or_default( $settings, 'list_heading', __( 'Más artículos', 'wp-multi-post-type-blog' ) ),
 		);
+	}
+
+	/**
+	 * Layouts the blog widgets accept.
+	 *
+	 * Los `vc_*` son los del sistema de diseño de Voz Católica; classic y compact se
+	 * conservan tal cual porque hay páginas publicadas que los usan.
+	 *
+	 * @return array
+	 */
+	public static function layout_types() {
+		return array( 'classic', 'compact', 'vc_lista', 'vc_tarjetas', 'vc_ranking' );
+	}
+
+	/**
+	 * Whether a layout belongs to the Voz Católica design system.
+	 *
+	 * @param string $layout Layout key.
+	 * @return bool
+	 */
+	public static function is_vc_layout( $layout ) {
+		return in_array( $layout, array( 'vc_lista', 'vc_tarjetas', 'vc_ranking' ), true );
+	}
+
+	/**
+	 * Check a "taxonomy:slug" key against public taxonomies.
+	 *
+	 * @param string $key Term key.
+	 * @return bool
+	 */
+	public static function is_valid_term_key( $key ) {
+		if ( ! is_string( $key ) || false === strpos( $key, ':' ) ) {
+			return false;
+		}
+
+		list( $taxonomy, $slug ) = explode( ':', $key, 2 );
+		$taxonomy_object         = get_taxonomy( sanitize_key( $taxonomy ) );
+
+		return $taxonomy_object && $taxonomy_object->public && '' !== sanitize_title( $slug );
 	}
 
 	/**
@@ -384,7 +441,7 @@ class Utils {
 		$order = strtoupper( sanitize_key( self::scalar_value( $settings, 'order', 'DESC' ) ) );
 
 		$layout = sanitize_key( self::scalar_value( $settings, 'layout', 'list' ) );
-		if ( ! in_array( $layout, array( 'list', 'cards', 'compact' ), true ) ) {
+		if ( ! in_array( $layout, array( 'list', 'cards', 'compact', 'vc_franja', 'vc_chips' ), true ) ) {
 			$layout = 'list';
 		}
 
@@ -408,6 +465,7 @@ class Utils {
 			'show_bio'        => self::sanitize_switch( $settings, 'show_bio', 'no' ),
 			'bio_length'      => max( 20, min( 600, intval( self::scalar_value( $settings, 'bio_length', 120 ) ) ) ),
 			'show_dividers'   => self::sanitize_switch( $settings, 'show_dividers', 'yes' ),
+			'exclude_current_author' => self::sanitize_switch( $settings, 'exclude_current_author', 'yes' ),
 		);
 	}
 
@@ -608,10 +666,29 @@ class Utils {
 			$query_args['post__not_in'] = $settings['exclude_ids'];
 		}
 
+		if ( ! empty( $settings['archive_search'] ) ) {
+			$query_args['s'] = $settings['archive_search'];
+		}
+
 		if ( ! empty( $settings['terms'] ) ) {
 			$tax_query = self::build_tax_query( $settings['terms'], $settings['tax_relation'] );
 			if ( ! empty( $tax_query ) ) {
 				$query_args['tax_query'] = $tax_query;
+			}
+		}
+
+		// Chip activo: se suma con AND a lo que el widget ya filtre. Nunca llega en la
+		// configuración firmada; lo agrega el manejador AJAX después de validarlo.
+		if ( ! empty( $settings['filter_term'] ) ) {
+			$chip_query = self::build_tax_query( array( $settings['filter_term'] ) );
+			if ( ! empty( $chip_query ) ) {
+				$query_args['tax_query'] = empty( $query_args['tax_query'] )
+					? $chip_query
+					: array(
+						'relation' => 'AND',
+						$query_args['tax_query'],
+						$chip_query,
+					);
 			}
 		}
 
@@ -679,6 +756,21 @@ function wp_multipost_blog_load_more_handler() {
 		$settings['post_types'] = array( $filter_post_type );
 	}
 
+	// Solo se acepta un chip que el propio widget ofrece.
+	$filter_term = isset( $_POST['filter_term'] ) ? sanitize_text_field( wp_unslash( $_POST['filter_term'] ) ) : '';
+	if ( '' !== $filter_term && in_array( $filter_term, $settings['chip_terms'], true ) ) {
+		$settings['filter_term'] = $filter_term;
+		// El desplazamiento sirve para saltear el destacado del listado completo; dentro
+		// de un tema no tiene sentido y escondería la primera entrada filtrada.
+		$settings['offset'] = 0;
+	}
+
+	// Al cambiar de chip o de pestaña se vuelve a la página 1, y en el diseño de
+	// tarjetas las primeras entradas se pintan como tarjetas, no como renglones.
+	$is_reset   = ! empty( $_POST['reset'] ) && 1 === $paged;
+	$cards_left = ( $is_reset && 'vc_tarjetas' === $settings['layout_type'] ) ? $settings['cards_count'] : 0;
+	$cards_html = '';
+
 	$query_args = Utils::build_query_args( $settings, $paged );
 	$query = new \WP_Query( $query_args );
 	$max_pages = Utils::get_max_pages( $query, $settings );
@@ -698,24 +790,43 @@ function wp_multipost_blog_load_more_handler() {
 			}
 		}
 
+		$position = 0;
 		while ( $query->have_posts() ) {
 			$query->the_post();
+			$position++;
+
+			if ( $cards_left > 0 ) {
+				$cards_html .= \WpMultiPostTypeBlog\Widgets\Blog_Posts_Widget::render_vc_card( get_post(), $settings, 1 === $position );
+				$cards_left--;
+				continue;
+			}
+
 			// Since this is loaded via AJAX (which is page > 1), we ONLY output standard list items.
 			$html .= \WpMultiPostTypeBlog\Widgets\Blog_Posts_Widget::render_list_post( get_post(), $settings );
 		}
 		wp_reset_postdata();
 
-		wp_send_json_success( array(
+		$response = array(
 			'html'        => $html,
 			'max_pages'   => $max_pages,
 			'found_posts' => $query->found_posts,
-		) );
+		);
+		if ( $is_reset && 'vc_tarjetas' === $settings['layout_type'] ) {
+			$response['cards_html'] = $cards_html;
+		}
+
+		wp_send_json_success( $response );
 	} else {
-		wp_send_json_success( array(
+		$response = array(
 			'html'        => '',
 			'max_pages'   => 0,
 			'found_posts' => 0, // 2.3: Return found_posts 0 when no posts
-		) );
+		);
+		if ( $is_reset && 'vc_tarjetas' === $settings['layout_type'] ) {
+			$response['cards_html'] = '';
+		}
+
+		wp_send_json_success( $response );
 	}
 }
 add_action( 'wp_ajax_wp_multiblog_load_more', __NAMESPACE__ . '\wp_multipost_blog_load_more_handler' );
@@ -749,6 +860,31 @@ function wp_multipost_blog_clear_transients_on_save( $post_id ) {
 	Utils::flush_cache();
 }
 add_action( 'save_post', __NAMESPACE__ . '\wp_multipost_blog_clear_transients_on_save' );
+
+/**
+ * Invalidate the "últimos comentarios" cache when a comment becomes visible or stops being so.
+ *
+ * Solo importan los aprobados: el spam y la cola de moderación no aparecen en el bloque, y
+ * vaciar la caché por cada uno la dejaría inútil en un sitio con mucho spam.
+ *
+ * @param int        $comment_id Comment ID.
+ * @param int|string $approved   Estado (comment_post) o nuevo estado (wp_set_comment_status).
+ */
+function wp_multipost_blog_clear_transients_on_comment( $comment_id, $approved = null ) {
+	if ( 1 === $approved || '1' === $approved || 'approve' === $approved ) {
+		Utils::flush_cache();
+		return;
+	}
+
+	// Un comentario que deja de estar aprobado (a spam, a la papelera, a pendiente) también
+	// tiene que desaparecer del bloque.
+	if ( in_array( $approved, array( 'hold', 'spam', 'trash' ), true ) ) {
+		Utils::flush_cache();
+	}
+}
+add_action( 'comment_post', __NAMESPACE__ . '\wp_multipost_blog_clear_transients_on_comment', 10, 2 );
+add_action( 'wp_set_comment_status', __NAMESPACE__ . '\wp_multipost_blog_clear_transients_on_comment', 10, 2 );
+add_action( 'edit_comment', __NAMESPACE__ . '\wp_multipost_blog_clear_all_transients' );
 add_action( 'deleted_post', __NAMESPACE__ . '\wp_multipost_blog_clear_all_transients' );
 add_action( 'created_term', __NAMESPACE__ . '\wp_multipost_blog_clear_all_transients' );
 add_action( 'edited_term', __NAMESPACE__ . '\wp_multipost_blog_clear_all_transients' );

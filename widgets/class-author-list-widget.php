@@ -69,7 +69,7 @@ class Author_List_Widget extends Widget_Base {
 	 * @return array
 	 */
 	public function get_style_depends() {
-		return [ 'wp-multipost-blog-widget-css' ];
+		return [ 'wp-multipost-blog-widget-css', 'wp-multipost-blog-ds-css' ];
 	}
 
 	/**
@@ -249,10 +249,73 @@ class Author_List_Widget extends Widget_Base {
 				'type'    => Controls_Manager::SELECT,
 				'default' => 'list',
 				'options' => [
-					'list'    => esc_html__( 'Lista', 'wp-multi-post-type-blog' ),
-					'cards'   => esc_html__( 'Tarjetas', 'wp-multi-post-type-blog' ),
-					'compact' => esc_html__( 'Compacto', 'wp-multi-post-type-blog' ),
+					'list'      => esc_html__( 'Lista', 'wp-multi-post-type-blog' ),
+					'cards'     => esc_html__( 'Tarjetas', 'wp-multi-post-type-blog' ),
+					'compact'   => esc_html__( 'Compacto', 'wp-multi-post-type-blog' ),
+					'vc_franja' => esc_html__( 'Sistema VC · Franja (portada)', 'wp-multi-post-type-blog' ),
+					'vc_chips'  => esc_html__( 'Sistema VC · Chips (otros autores)', 'wp-multi-post-type-blog' ),
 				],
+			]
+		);
+
+		$this->add_control(
+			'block_title',
+			[
+				'label'       => esc_html__( 'Título del bloque', 'wp-multi-post-type-blog' ),
+				'type'        => Controls_Manager::TEXT,
+				'default'     => '',
+				'placeholder' => esc_html__( 'Quienes escriben en Voz Católica', 'wp-multi-post-type-blog' ),
+				'label_block' => true,
+				'condition'   => [ 'layout' => [ 'vc_franja', 'vc_chips' ] ],
+			]
+		);
+
+		$this->add_control(
+			'block_title_tag',
+			[
+				'label'     => esc_html__( 'Etiqueta del título', 'wp-multi-post-type-blog' ),
+				'type'      => Controls_Manager::SELECT,
+				'default'   => 'h2',
+				'options'   => [
+					'h2'  => 'H2',
+					'h3'  => 'H3',
+					'div' => 'div',
+				],
+				'condition' => [ 'layout' => [ 'vc_franja', 'vc_chips' ] ],
+			]
+		);
+
+		$this->add_control(
+			'block_link_text',
+			[
+				'label'       => esc_html__( 'Texto del enlace', 'wp-multi-post-type-blog' ),
+				'type'        => Controls_Manager::TEXT,
+				'default'     => '',
+				'placeholder' => esc_html__( 'Ver todos los autores', 'wp-multi-post-type-blog' ),
+				'label_block' => true,
+				'condition'   => [ 'layout' => [ 'vc_franja', 'vc_chips' ] ],
+			]
+		);
+
+		$this->add_control(
+			'block_link_url',
+			[
+				'label'       => esc_html__( 'Destino del enlace', 'wp-multi-post-type-blog' ),
+				'type'        => Controls_Manager::URL,
+				'dynamic'     => [ 'active' => true ],
+				'placeholder' => home_url( '/autores/' ),
+				'condition'   => [ 'layout' => [ 'vc_franja', 'vc_chips' ] ],
+			]
+		);
+
+		$this->add_control(
+			'exclude_current_author',
+			[
+				'label'        => esc_html__( 'Ocultar al autor de la página', 'wp-multi-post-type-blog' ),
+				'type'         => Controls_Manager::SWITCHER,
+				'return_value' => 'yes',
+				'default'      => 'yes',
+				'description'  => esc_html__( 'En el archivo de un autor no lo repite entre «otros autores».', 'wp-multi-post-type-blog' ),
 			]
 		);
 
@@ -543,11 +606,31 @@ class Author_List_Widget extends Widget_Base {
 	 * Render the widget.
 	 */
 	protected function render() {
-		$settings = \WpMultiPostTypeBlog\Utils::sanitize_author_settings( $this->get_settings_for_display() );
+		$raw      = $this->get_settings_for_display();
+		$settings = \WpMultiPostTypeBlog\Utils::sanitize_author_settings( $raw );
 		$authors  = self::get_authors( $settings );
+
+		// Se filtra después de la caché: la lista cacheada es la misma para todos los
+		// archivos de autor y solo cambia a quién se saltea.
+		if ( 'yes' === $settings['exclude_current_author'] && is_author() ) {
+			$current = get_queried_object_id();
+			$authors = array_values(
+				array_filter(
+					$authors,
+					static function ( $author ) use ( $current ) {
+						return (int) $author['id'] !== (int) $current;
+					}
+				)
+			);
+		}
 
 		if ( empty( $authors ) ) {
 			echo '<div class="premium-blog-no-posts">' . esc_html__( 'No se encontraron autores.', 'wp-multi-post-type-blog' ) . '</div>';
+			return;
+		}
+
+		if ( in_array( $settings['layout'], array( 'vc_franja', 'vc_chips' ), true ) ) {
+			$this->render_vc( $authors, $settings, $raw );
 			return;
 		}
 
@@ -564,6 +647,75 @@ class Author_List_Widget extends Widget_Base {
 				<?php $this->render_author( $author, $settings ); ?>
 			<?php endforeach; ?>
 		</ul>
+		<?php
+	}
+
+	/**
+	 * Diseños del sistema VC: franja de la portada y chips de «otros autores».
+	 *
+	 * En la franja toda la tarjeta es un solo enlace a la página del autor, con su última
+	 * entrada como segunda línea (y completa en el title, porque se corta con puntos).
+	 *
+	 * @param array $authors  Autores.
+	 * @param array $settings Ajustes saneados.
+	 * @param array $raw      Ajustes crudos de Elementor (encabezado).
+	 */
+	private function render_vc( $authors, $settings, $raw ) {
+		$title = isset( $raw['block_title'] ) && is_scalar( $raw['block_title'] ) ? trim( sanitize_text_field( $raw['block_title'] ) ) : '';
+		$tag   = isset( $raw['block_title_tag'] ) && in_array( $raw['block_title_tag'], array( 'h2', 'h3', 'div' ), true ) ? $raw['block_title_tag'] : 'h2';
+		$link  = isset( $raw['block_link_text'] ) && is_scalar( $raw['block_link_text'] ) ? trim( sanitize_text_field( $raw['block_link_text'] ) ) : '';
+		$url   = ( ! empty( $raw['block_link_url']['url'] ) ) ? (string) $raw['block_link_url']['url'] : '';
+		$ext   = ! empty( $raw['block_link_url']['is_external'] );
+		$chips = ( 'vc_chips' === $settings['layout'] );
+
+		// La franja recorta a cinco columnas en escritorio; con menos autores las columnas
+		// se ajustan para no dejar huecos a la derecha.
+		$cols = min( 5, max( 1, count( $authors ) ) );
+		?>
+		<div class="wpmb-ds wpmb-autores" style="--wpmb-autores-cols: <?php echo (int) $cols; ?>">
+			<?php if ( '' !== $title || ( '' !== $link && '' !== $url ) ) : ?>
+				<?php // En la portada la franja lleva un título discreto; en la página de autor, el de sección. ?>
+				<div class="wpmb-cab <?php echo $chips ? 'wpmb-cab--grande' : 'wpmb-cab--compacta'; ?>">
+					<?php if ( '' !== $title ) : ?>
+						<<?php echo $tag; ?> class="wpmb-cab__tit"><?php echo esc_html( $title ); ?></<?php echo $tag; ?>>
+					<?php endif; ?>
+					<?php if ( '' !== $link && '' !== $url ) : ?>
+						<a class="wpmb-enlace" href="<?php echo esc_url( $url ); ?>"<?php echo $ext ? ' target="_blank" rel="noopener"' : ''; ?>><?php echo esc_html( $link ); ?></a>
+					<?php endif; ?>
+				</div>
+			<?php endif; ?>
+			<ul class="premium-author-list premium-author-list--<?php echo esc_attr( $settings['layout'] ); ?>">
+				<?php foreach ( $authors as $author ) : ?>
+					<?php
+					$author_url = get_author_posts_url( $author['id'] );
+					$avatar     = 'yes' === $settings['show_avatar']
+						? get_avatar( $author['id'], $chips ? 80 : 88, '', '', array( 'loading' => 'lazy' ) )
+						: '';
+					?>
+					<li class="author-item">
+						<?php if ( $chips ) : ?>
+							<a class="wpmb-autor-chip" href="<?php echo esc_url( $author_url ); ?>">
+								<?php echo $avatar; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_avatar(). ?>
+								<?php echo esc_html( $author['name'] ); ?>
+							</a>
+						<?php else : ?>
+							<?php $last = ( 'yes' === $settings['show_last_post'] && $author['post_title'] ) ? $author['post_title'] : ''; ?>
+							<a class="wpmb-autor" href="<?php echo esc_url( $author_url ); ?>"<?php echo '' !== $last ? ' title="' . esc_attr( $last ) . '"' : ''; ?>>
+								<?php echo $avatar; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_avatar(). ?>
+								<span class="wpmb-autor__txt">
+									<b><?php echo esc_html( $author['name'] ); ?></b>
+									<?php if ( '' !== $last ) : ?>
+										<span class="wpmb-autor__ult"><?php echo esc_html( $last ); ?></span>
+									<?php elseif ( '' !== $this->build_meta( $author, $settings ) ) : ?>
+										<span class="wpmb-autor__ult"><?php echo esc_html( $this->build_meta( $author, $settings ) ); ?></span>
+									<?php endif; ?>
+								</span>
+							</a>
+						<?php endif; ?>
+					</li>
+				<?php endforeach; ?>
+			</ul>
+		</div>
 		<?php
 	}
 

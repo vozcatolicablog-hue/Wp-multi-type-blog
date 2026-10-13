@@ -8,10 +8,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
+require_once __DIR__ . '/trait-vc-layouts.php';
+
 /**
  * Premium Multi-Post Blog Elementor Widget.
  */
 class Blog_Posts_Widget extends Widget_Base {
+
+	use Vc_Layouts;
 
 	/**
 	 * Maximum terms loaded per taxonomy in Elementor controls.
@@ -60,7 +64,7 @@ class Blog_Posts_Widget extends Widget_Base {
 	 * @return array
 	 */
 	public function get_style_depends() {
-		return [ 'wp-multipost-blog-widget-css' ];
+		return [ 'wp-multipost-blog-widget-css', 'wp-multipost-blog-ds-css' ];
 	}
 
 	/**
@@ -426,10 +430,14 @@ class Blog_Posts_Widget extends Widget_Base {
 				'label'   => esc_html__( 'Layout Type', 'wp-multi-post-type-blog' ),
 				'type'    => Controls_Manager::SELECT,
 				'default' => 'classic',
-				'options' => [
-					'classic' => esc_html__( 'Classic', 'wp-multi-post-type-blog' ),
-					'compact' => esc_html__( 'Compact', 'wp-multi-post-type-blog' ),
-				],
+				'options' => array_merge(
+					[
+						'classic' => esc_html__( 'Classic', 'wp-multi-post-type-blog' ),
+						'compact' => esc_html__( 'Compact', 'wp-multi-post-type-blog' ),
+					],
+					self::vc_layout_options()
+				),
+				'description' => esc_html__( 'Los diseños «Sistema VC» siguen el sistema de diseño de Voz Católica (tipografía, colores y espaciados del mockup).', 'wp-multi-post-type-blog' ),
 			]
 		);
 
@@ -475,6 +483,9 @@ class Blog_Posts_Widget extends Widget_Base {
 				'type'        => Controls_Manager::TEXT,
 				'default'     => esc_html__( 'LEER MÁS', 'wp-multi-post-type-blog' ),
 				'label_block' => true,
+				'condition'   => [
+					'layout_type' => [ 'classic', 'compact' ],
+				],
 			]
 		);
 
@@ -580,6 +591,9 @@ class Blog_Posts_Widget extends Widget_Base {
 				'label'   => esc_html__( 'List Columns', 'wp-multi-post-type-blog' ),
 				'type'    => Controls_Manager::SELECT,
 				'default' => '1',
+				'condition' => [
+					'layout_type' => [ 'classic', 'compact' ],
+				],
 				'options' => [
 					'1' => esc_html__( 'One', 'wp-multi-post-type-blog' ),
 					'2' => esc_html__( 'Two', 'wp-multi-post-type-blog' ),
@@ -590,14 +604,21 @@ class Blog_Posts_Widget extends Widget_Base {
 
 		$this->end_controls_section();
 
+		$this->register_vc_controls( $this->get_all_taxonomy_terms() );
+
 		// --- STYLE TAB ---
+		// Los estilos de abajo son de los diseños clásico y compacto: el sistema VC trae los
+		// suyos y no deben mezclarse (la condición también evita que Elementor emita su CSS).
 
 		// Featured Post Style Section
 		$this->start_controls_section(
 			'section_featured_style',
 			[
-				'label' => esc_html__( 'Featured Post Style', 'wp-multi-post-type-blog' ),
-				'tab'   => Controls_Manager::TAB_STYLE,
+				'label'     => esc_html__( 'Featured Post Style', 'wp-multi-post-type-blog' ),
+				'tab'       => Controls_Manager::TAB_STYLE,
+				'condition' => [
+					'layout_type' => [ 'classic', 'compact' ],
+				],
 			]
 		);
 
@@ -750,8 +771,11 @@ class Blog_Posts_Widget extends Widget_Base {
 		$this->start_controls_section(
 			'section_list_style',
 			[
-				'label' => esc_html__( 'List Posts Style', 'wp-multi-post-type-blog' ),
-				'tab'   => Controls_Manager::TAB_STYLE,
+				'label'     => esc_html__( 'List Posts Style', 'wp-multi-post-type-blog' ),
+				'tab'       => Controls_Manager::TAB_STYLE,
+				'condition' => [
+					'layout_type' => [ 'classic', 'compact' ],
+				],
 			]
 		);
 
@@ -774,6 +798,9 @@ class Blog_Posts_Widget extends Widget_Base {
 				],
 				'selectors'  => [
 					'{{WRAPPER}} .premium-blog-widget__list' => 'gap: {{SIZE}}{{UNIT}};',
+				],
+				'condition'  => [
+					'layout_type' => [ 'classic', 'compact' ],
 				],
 			]
 		);
@@ -1485,6 +1512,10 @@ class Blog_Posts_Widget extends Widget_Base {
 	 * @param \WP_Post $post Post object.
 	 */
 	public static function render_list_post( $post, $settings = array() ) {
+		if ( ! empty( $settings['layout_type'] ) && \WpMultiPostTypeBlog\Utils::is_vc_layout( $settings['layout_type'] ) ) {
+			return self::render_vc_item( $post, $settings );
+		}
+
 		$post_id      = $post->ID;
 		$title        = get_the_title( $post_id );
 		$permalink    = get_permalink( $post_id );
@@ -1608,11 +1639,19 @@ class Blog_Posts_Widget extends Widget_Base {
 
 	/**
 	 * Render the widget layout HTML (shared between Blog_Posts_Widget and Blog_Archive_Widget).
+	 *
+	 * @param array|null $header Encabezado del sistema VC (build_vc_header), null en los diseños clásicos.
 	 */
-	protected function render_widget_html( $widget_id, $settings, $query, $paged, $max_pages, $settings_signature, $columns_class, $layout_type_class, $extra_classes = '', $active_post_types = array() ) {
+	protected function render_widget_html( $widget_id, $settings, $query, $paged, $max_pages, $settings_signature, $columns_class, $layout_type_class, $extra_classes = '', $active_post_types = array(), $header = null ) {
 		$pagination = $settings['pagination'];
+		$layout     = $settings['layout_type'];
+		$is_vc      = \WpMultiPostTypeBlog\Utils::is_vc_layout( $layout );
+
+		if ( $is_vc ) {
+			$extra_classes .= ' wpmb-ds';
+		}
 		?>
-		<div id="wp-multipost-blog-<?php echo esc_attr( $widget_id ); ?>" 
+		<div id="wp-multipost-blog-<?php echo esc_attr( $widget_id ); ?>"
 			class="premium-blog-widget <?php echo esc_attr( $extra_classes ); ?> <?php echo esc_attr( $columns_class ); ?> <?php echo esc_attr( $layout_type_class ); ?>"
 			data-widget-id="<?php echo esc_attr( $widget_id ); ?>"
 			data-settings="<?php echo esc_attr( wp_json_encode( $settings ) ); ?>"
@@ -1620,16 +1659,22 @@ class Blog_Posts_Widget extends Widget_Base {
 			data-pagination="<?php echo esc_attr( $pagination ); ?>"
 			data-max-pages="<?php echo esc_attr( $max_pages ); ?>"
 			data-current-page="<?php echo esc_attr( $paged ); ?>">
-			
+
+			<?php
+			if ( $is_vc ) {
+				self::render_vc_header( $header, $settings );
+			}
+			?>
+
 			<?php if ( ! empty( $active_post_types ) && count( $active_post_types ) > 1 ) : ?>
-				<div class="premium-blog-archive__filters">
-					<button class="filter-tab active" data-post-type="" aria-label="<?php esc_attr_e( 'Todos', 'wp-multi-post-type-blog' ); ?>">
+				<div class="premium-blog-archive__filters"<?php echo $is_vc ? ' role="group" aria-label="' . esc_attr__( 'Filtrar por tipo de contenido', 'wp-multi-post-type-blog' ) . '"' : ''; ?>>
+					<button type="button" class="filter-tab active" data-post-type="" aria-label="<?php esc_attr_e( 'Todos', 'wp-multi-post-type-blog' ); ?>">
 						<?php esc_html_e( 'Todos', 'wp-multi-post-type-blog' ); ?>
 					</button>
 					<?php foreach ( $active_post_types as $pt ) : ?>
 						<?php $pt_obj = get_post_type_object( $pt ); ?>
 						<?php if ( $pt_obj ) : ?>
-							<button class="filter-tab" data-post-type="<?php echo esc_attr( $pt ); ?>" aria-label="<?php echo esc_attr( $pt_obj->labels->name ); ?>">
+							<button type="button" class="filter-tab" data-post-type="<?php echo esc_attr( $pt ); ?>" aria-label="<?php echo esc_attr( $pt_obj->labels->name ); ?>">
 								<?php echo esc_html( $pt_obj->labels->name ); ?>
 							</button>
 						<?php endif; ?>
@@ -1641,16 +1686,32 @@ class Blog_Posts_Widget extends Widget_Base {
 				<?php
 				$count         = 0;
 				$featured_html = '';
+				$cards_html    = '';
 				$list_html     = '';
+				// El ranking no tiene destacado; en tarjetas el «destacado» es la primera tarjeta.
+				$use_featured  = 'yes' === $settings['show_featured'] && ! in_array( $layout, array( 'vc_tarjetas', 'vc_ranking' ), true );
+				$cards_left    = ( 'vc_tarjetas' === $layout && 1 === $paged ) ? (int) $settings['cards_count'] : 0;
+
 				while ( $query->have_posts() ) {
 					$query->the_post();
 					$count++;
 
-					if ( 1 === $paged && 1 === $count && 'yes' === $settings['show_featured'] ) {
+					if ( 1 === $paged && 1 === $count && $use_featured ) {
 						// Registrado aquí, antes de que Elementor pase al siguiente widget,
 						// para que los de más abajo puedan excluirlo de su consulta.
 						\WpMultiPostTypeBlog\Utils::register_featured_id( get_the_ID() );
-						$featured_html = self::render_featured_post( get_post(), $settings );
+						$featured_html = $is_vc
+							? self::render_vc_hero( get_post(), $settings )
+							: self::render_featured_post( get_post(), $settings );
+						continue;
+					}
+
+					if ( $cards_left > 0 ) {
+						if ( 1 === $count && 'yes' === $settings['show_featured'] ) {
+							\WpMultiPostTypeBlog\Utils::register_featured_id( get_the_ID() );
+						}
+						$cards_html .= self::render_vc_card( get_post(), $settings, 1 === $count );
+						$cards_left--;
 						continue;
 					}
 
@@ -1659,8 +1720,24 @@ class Blog_Posts_Widget extends Widget_Base {
 
 				// The list container is always rendered, even when empty, so AJAX pagination
 				// and the archive filter tabs always have a target to append into.
-				echo $featured_html;
-				echo '<div class="premium-blog-widget__list list-posts">' . $list_html . '</div>';
+				if ( 'vc_tarjetas' === $layout ) {
+					// Sin renglones ni paginación, la columna «Más artículos» sobra.
+					$show_more = '' !== $list_html || in_array( $pagination, array( 'load_more', 'infinite' ), true );
+					?>
+					<div class="wpmb-art<?php echo $show_more ? '' : ' wpmb-art--solo-tarjetas'; ?>">
+						<div class="wpmb-tarjetas"><?php echo $cards_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en render_vc_card(). ?></div>
+						<div class="wpmb-mas"<?php echo $show_more ? '' : ' hidden'; ?>>
+							<p class="wpmb-mas__tit"><?php echo esc_html( $settings['list_heading'] ); ?></p>
+							<ol class="premium-blog-widget__list list-posts"><?php echo $list_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></ol>
+							<?php self::render_vc_foot_link( $header ); ?>
+						</div>
+					</div>
+					<?php
+				} else {
+					$list_tag = ( 'vc_ranking' === $layout ) ? 'ol' : 'div';
+					echo $featured_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					echo '<' . $list_tag . ' class="premium-blog-widget__list list-posts">' . $list_html . '</' . $list_tag . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				}
 				?>
 			</div>
 
@@ -1680,9 +1757,16 @@ class Blog_Posts_Widget extends Widget_Base {
 				</div>
 			<?php endif; ?>
 
-			<?php $btn_text = $settings['load_more_text']; ?>
+			<?php
+			$btn_text = $settings['load_more_text'];
+			// El sistema escribe en minúscula de oración: el valor por defecto heredado
+			// («Cargar Más») se corrige solo si nadie lo cambió.
+			if ( $is_vc && 'Cargar Más' === $btn_text ) {
+				$btn_text = __( 'Cargar más', 'wp-multi-post-type-blog' );
+			}
+			?>
 			<div class="premium-blog-widget__pagination-ajax ajax-pagination" style="<?php echo ( 'load_more' === $pagination && $max_pages > 1 && $paged < $max_pages ) ? '' : 'display: none;'; ?>">
-				<button class="wp-multipost-blog-load-more-btn" aria-label="<?php echo esc_attr( $btn_text ); ?>">
+				<button type="button" class="wp-multipost-blog-load-more-btn" aria-label="<?php echo esc_attr( $btn_text ); ?>">
 					<span class="btn-text"><?php echo esc_html( $btn_text ); ?></span>
 					<span class="btn-spinner"></span>
 				</button>
@@ -1695,6 +1779,12 @@ class Blog_Posts_Widget extends Widget_Base {
 			<div class="premium-blog-widget__no-more" style="display: none; text-align: center; margin-top: 30px; font-weight: 600; color: #64748b;">
 				<?php esc_html_e( 'Has llegado al final.', 'wp-multi-post-type-blog' ); ?>
 			</div>
+
+			<?php
+			if ( $is_vc && 'vc_tarjetas' !== $layout ) {
+				self::render_vc_foot_link( $header, true );
+			}
+			?>
 		</div>
 		<?php
 		wp_reset_postdata();
@@ -1705,6 +1795,7 @@ class Blog_Posts_Widget extends Widget_Base {
 	 */
 	protected function render() {
 		$settings = $this->get_settings_for_display();
+		$raw       = $settings;
 		$widget_id = $this->get_id();
 		$page_var  = 'wpmpb_' . $widget_id . '_page';
 
@@ -1720,7 +1811,8 @@ class Blog_Posts_Widget extends Widget_Base {
 		$max_pages = \WpMultiPostTypeBlog\Utils::get_max_pages( $query, $settings );
 
 		if ( ! $query->have_posts() ) {
-			echo '<div class="premium-blog-no-posts">' . esc_html__( 'No se encontraron publicaciones.', 'wp-multi-post-type-blog' ) . '</div>';
+			$empty_class = \WpMultiPostTypeBlog\Utils::is_vc_layout( $settings['layout_type'] ) ? 'premium-blog-no-posts wpmb-ds' : 'premium-blog-no-posts';
+			echo '<div class="' . esc_attr( $empty_class ) . '">' . esc_html__( 'No se encontraron publicaciones.', 'wp-multi-post-type-blog' ) . '</div>';
 			return;
 		}
 
@@ -1740,7 +1832,10 @@ class Blog_Posts_Widget extends Widget_Base {
 		$settings_signature = \WpMultiPostTypeBlog\Utils::sign_settings( $settings );
 		$columns_class = 'premium-blog-widget--columns-' . intval( $settings['columns'] );
 		$layout_type_class = 'premium-blog-widget--layout-' . sanitize_html_class( $settings['layout_type'] );
+		$header            = \WpMultiPostTypeBlog\Utils::is_vc_layout( $settings['layout_type'] )
+			? self::build_vc_header( $raw, $settings, $query->found_posts )
+			: null;
 
-		$this->render_widget_html( $widget_id, $settings, $query, $paged, $max_pages, $settings_signature, $columns_class, $layout_type_class );
+		$this->render_widget_html( $widget_id, $settings, $query, $paged, $max_pages, $settings_signature, $columns_class, $layout_type_class, '', array(), $header );
 	}
 }

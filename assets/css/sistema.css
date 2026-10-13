@@ -1,0 +1,1101 @@
+/**
+ * WP Multi-Post Type Blog — Sistema de diseño de Voz Católica.
+ *
+ * Diseños «Sistema VC» de los widgets del plugin. Los valores salen de los mockups aprobados:
+ *   - propuesta-home-v4: portada partida (lo último), «Más publicaciones» con chips, «Lo más
+ *     leído» numerado, «Últimos comentarios» y la franja «Quienes escriben en Voz Católica».
+ *   - propuesta-autor: tarjetas de artículos + «Más artículos», chips de «Otros autores».
+ *
+ * Todo cuelga de `.wpmb-ds` (especificidad >= 0,2,0) para ganar al Kit de Elementor, que estiliza
+ * `a`, `button` y `h1-h6` con `.elementor-kit-N x` (0,1,1) y sus :hover (0,2,1): por eso los
+ * estados de botones y chips se redeclaran a 0,3,0. Los diseños clásico y compacto siguen en
+ * blog-posts-widget.css y no se tocan desde aquí.
+ *
+ * Reglas del sistema: acciones 4 px; tarjetas y contenedores 8 px; miniaturas 6 px; chips en
+ * píldora; avatares en círculo. Sin cursivas en bloques: las citas van rectas con «».
+ */
+
+/* ── 1. Fuentes (autoalojadas: no dependen de lo que cargue el Kit) ─────────────────────────── */
+
+@font-face {
+	font-family: "Cormorant Garamond";
+	font-style: normal;
+	font-weight: 500;
+	font-display: swap;
+	src: url("../fonts/CormorantGaramond-Medium.woff2") format("woff2");
+}
+
+@font-face {
+	font-family: "Cormorant Garamond";
+	font-style: normal;
+	font-weight: 600;
+	font-display: swap;
+	src: url("../fonts/CormorantGaramond-SemiBold.woff2") format("woff2");
+}
+
+@font-face {
+	font-family: "Inter";
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url("../fonts/Inter-Variable.woff2") format("woff2");
+}
+
+/* ── 2. Tokens ──────────────────────────────────────────────────────────────────────────────── */
+
+/* Los colores leen primero la variable global del sitio (el Kit de producción define --azul,
+   --noche, --oro, --pergamino, --papel, --tinta y --linea con estos mismos valores) y caen al
+   valor del sistema. Las fuentes NO leen las del Kit: en producción apuntan a familias que no
+   están cargadas. */
+.wpmb-ds {
+	--wpmb-pergamino: var(--pergamino, #f7f3ec);
+	--wpmb-papel: var(--papel, #fff);
+	--wpmb-papel-hundido: #f2ede4;
+	--wpmb-linea: var(--linea, #e2dacb);
+	--wpmb-linea-fuerte: #857b6c;
+	--wpmb-tinta: var(--tinta, #1b2029);
+	--wpmb-tinta-2: #525966;
+	--wpmb-noche: var(--noche, #0e2238);
+	--wpmb-azul: var(--azul, #046cbd);
+	--wpmb-azul-hover: #035a9e;
+	--wpmb-azul-suave: #e5eff8;
+	--wpmb-oro: var(--oro, #b08d4f);
+	--wpmb-oro-texto: #76571c;
+	--wpmb-oro-suave: #f5eddc;
+	--wpmb-oro-linea: #e6d6b5;
+	--wpmb-tit: "Cormorant Garamond", Georgia, serif;
+	--wpmb-ui: "Inter", "Segoe UI", system-ui, sans-serif;
+	--wpmb-sombra: 0 1px 2px rgba(14, 34, 56, .10), 0 14px 34px rgba(14, 34, 56, .12);
+	--wpmb-ease: cubic-bezier(.16, 1, .3, 1);
+
+	color: var(--wpmb-tinta);
+	font: 400 16px/24px var(--wpmb-ui);
+}
+
+.wpmb-ds *,
+.wpmb-ds *::before,
+.wpmb-ds *::after {
+	box-sizing: border-box;
+}
+
+/* ── 3. Base anti-Kit ───────────────────────────────────────────────────────────────────────── */
+
+.wpmb-ds a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.wpmb-ds h1,
+.wpmb-ds h2,
+.wpmb-ds h3,
+.wpmb-ds h4,
+.wpmb-ds h5,
+.wpmb-ds h6 {
+	margin: 0;
+	padding: 0;
+	font-family: var(--wpmb-tit);
+	font-weight: 600;
+	letter-spacing: 0;
+	text-transform: none;
+	color: var(--wpmb-tinta);
+	text-wrap: balance;
+}
+
+.wpmb-ds img {
+	display: block;
+	max-width: 100%;
+}
+
+.wpmb-ds a:focus-visible,
+.wpmb-ds button:focus-visible {
+	outline: 3px solid var(--wpmb-oro);
+	outline-offset: 2px;
+}
+
+.wpmb-ds .wpmb-sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* ── 4. Primitivos: antetítulo, botones, enlace, chips ──────────────────────────────────────── */
+
+.wpmb-ds .wpmb-ante {
+	margin: 0 0 12px;
+	font: 600 13px/16px var(--wpmb-ui);
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	color: var(--wpmb-azul);
+}
+
+body .wpmb-ds .wpmb-btn,
+body .wpmb-ds button.wpmb-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-height: 48px;
+	padding: 13px 26px;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	background: var(--wpmb-azul);
+	color: #fff;
+	font: 600 16px/20px var(--wpmb-ui);
+	letter-spacing: 0;
+	text-transform: none;
+	text-decoration: none;
+	white-space: nowrap;
+	box-shadow: none;
+	cursor: pointer;
+	transition: background-color .2s var(--wpmb-ease), transform .2s var(--wpmb-ease);
+}
+
+body .wpmb-ds .wpmb-btn:hover,
+body .wpmb-ds .wpmb-btn:focus {
+	background: var(--wpmb-azul-hover);
+	color: #fff;
+}
+
+body .wpmb-ds .wpmb-btn:active {
+	transform: translateY(1px);
+}
+
+body .wpmb-ds .wpmb-btn--sec,
+body .wpmb-ds button.wpmb-btn--sec {
+	background: transparent;
+	color: var(--wpmb-azul);
+	border-color: var(--wpmb-azul);
+}
+
+body .wpmb-ds .wpmb-btn--sec:hover,
+body .wpmb-ds .wpmb-btn--sec:focus {
+	background: var(--wpmb-azul-suave);
+	color: var(--wpmb-azul);
+}
+
+body .wpmb-ds .wpmb-btn--sm,
+body .wpmb-ds button.wpmb-btn--sm {
+	min-height: 36px;
+	padding: 7px 14px;
+	font-size: 14px;
+}
+
+.wpmb-ds .wpmb-enlace {
+	color: var(--wpmb-azul);
+	font: 600 16px/24px var(--wpmb-ui);
+	text-decoration: none;
+	white-space: nowrap;
+	background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
+	transition: background-size .25s var(--wpmb-ease);
+}
+
+.wpmb-ds .wpmb-enlace::after {
+	content: " →";
+}
+
+.wpmb-ds .wpmb-enlace:hover {
+	color: var(--wpmb-azul);
+	background-size: 100% 1px;
+}
+
+.wpmb-ds .wpmb-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+}
+
+body .wpmb-ds .wpmb-chip,
+body .wpmb-ds .premium-blog-archive__filters .filter-tab {
+	display: inline-flex;
+	align-items: center;
+	min-height: 32px;
+	margin: 0;
+	padding: 5px 12px;
+	border: 1px solid var(--wpmb-linea);
+	border-radius: 999px;
+	background: var(--wpmb-papel);
+	color: var(--wpmb-tinta-2);
+	font: 500 13px/20px var(--wpmb-ui);
+	letter-spacing: 0;
+	text-transform: none;
+	box-shadow: none;
+	cursor: pointer;
+	transition: border-color .2s var(--wpmb-ease), color .2s var(--wpmb-ease), background-color .2s var(--wpmb-ease);
+}
+
+body .wpmb-ds .wpmb-chip:hover,
+body .wpmb-ds .wpmb-chip:focus,
+body .wpmb-ds .premium-blog-archive__filters .filter-tab:hover,
+body .wpmb-ds .premium-blog-archive__filters .filter-tab:focus {
+	border-color: var(--wpmb-linea-fuerte);
+	background: var(--wpmb-papel);
+	color: var(--wpmb-tinta);
+}
+
+body .wpmb-ds .wpmb-chip.active,
+body .wpmb-ds .wpmb-chip[aria-pressed="true"],
+body .wpmb-ds .premium-blog-archive__filters .filter-tab.active {
+	border-color: var(--wpmb-noche);
+	background: var(--wpmb-noche);
+	color: #fff;
+	font-weight: 600;
+	box-shadow: none;
+}
+
+/* Las pestañas de tipo de contenido del widget de archivo adoptan el aspecto de chips. */
+.wpmb-ds .premium-blog-archive__filters {
+	justify-content: flex-start;
+	gap: 6px;
+	margin: 0 0 20px;
+}
+
+/* ── 5. Encabezado del bloque ───────────────────────────────────────────────────────────────── */
+
+.wpmb-ds .wpmb-cab {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 12px 16px;
+	margin: 0 0 20px;
+}
+
+.wpmb-ds .wpmb-cab--con-bajada,
+.wpmb-ds .wpmb-cab--grande {
+	align-items: flex-end;
+	gap: 16px 24px;
+	margin-bottom: 28px;
+}
+
+.wpmb-ds .wpmb-cab__tit {
+	font-size: 34px;
+	line-height: 38px;
+}
+
+.wpmb-ds .wpmb-cab--con-bajada .wpmb-cab__tit,
+.wpmb-ds .wpmb-cab--grande .wpmb-cab__tit {
+	font-size: 40px;
+	line-height: 44px;
+}
+
+.wpmb-ds .wpmb-cab__sub {
+	margin: 6px 0 0;
+	color: var(--wpmb-tinta-2);
+}
+
+.wpmb-ds .wpmb-chips--fila {
+	margin: -8px 0 20px;
+	gap: 8px;
+}
+
+/* En la fila propia (página de autor) los chips son un punto más grandes, como en el mockup. */
+body .wpmb-ds .wpmb-chips--fila .wpmb-chip {
+	min-height: 34px;
+	font-size: 14px;
+}
+
+.wpmb-ds .wpmb-pie {
+	margin: 18px 0 0;
+}
+
+/* ── 6. Destacado partido («Lo último en el blog») ──────────────────────────────────────────── */
+
+.wpmb-ds .wpmb-hero {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: 56px;
+	align-items: center;
+}
+
+.wpmb-ds .wpmb-hero--sin-imagen {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.wpmb-ds .wpmb-hero__tit {
+	max-width: 15em;
+	font-size: 48px;
+	line-height: 53px;
+	letter-spacing: -.005em;
+}
+
+.wpmb-ds .wpmb-hero__tit a:hover {
+	color: var(--wpmb-azul);
+}
+
+.wpmb-ds .wpmb-hero__sub {
+	max-width: 44ch;
+	margin: 18px 0 28px;
+	color: var(--wpmb-tinta-2);
+	font-size: 19px;
+	line-height: 30px;
+}
+
+.wpmb-ds .wpmb-hero__acc {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 18px;
+}
+
+.wpmb-ds .wpmb-hero__tit + .wpmb-hero__acc {
+	margin-top: 28px;
+}
+
+.wpmb-ds .wpmb-firma {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	color: var(--wpmb-tinta-2);
+	font-size: 14px;
+	line-height: 20px;
+}
+
+.wpmb-ds .wpmb-firma img {
+	flex: none;
+	width: 36px;
+	height: 36px;
+	border: 1px solid var(--wpmb-linea);
+	border-radius: 999px;
+	object-fit: cover;
+}
+
+.wpmb-ds .wpmb-firma b {
+	display: block;
+	color: var(--wpmb-tinta);
+	font-weight: 600;
+}
+
+.wpmb-ds .wpmb-hero__foto {
+	position: relative;
+	display: block;
+	aspect-ratio: 4 / 3;
+	overflow: hidden;
+	border-radius: 8px;
+	background: var(--wpmb-papel-hundido);
+	box-shadow: var(--wpmb-sombra);
+}
+
+.wpmb-ds .wpmb-hero__foto img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+/* ── 7. Lista con miniatura («Más publicaciones») ───────────────────────────────────────────── */
+
+.wpmb-ds.premium-blog-widget--layout-vc_lista .premium-blog-widget__list {
+	display: grid;
+	gap: 4px;
+	margin: 0;
+}
+
+.wpmb-ds .wpmb-hero + .premium-blog-widget__list:not(:empty) {
+	margin-top: 48px;
+	padding-top: 40px;
+	border-top: 1px solid var(--wpmb-linea);
+}
+
+.wpmb-ds .wpmb-fila {
+	position: relative;
+	display: grid;
+	grid-template-columns: 200px minmax(0, 1fr);
+	gap: 22px;
+	align-items: center;
+	margin: 0 -14px;
+	padding: 14px;
+	border-radius: 8px;
+	transition: background-color .25s var(--wpmb-ease);
+}
+
+.wpmb-ds .wpmb-fila:hover {
+	background: var(--wpmb-pergamino);
+}
+
+.wpmb-ds .wpmb-fila--sin-imagen {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.wpmb-ds .wpmb-fila__img {
+	display: block;
+	aspect-ratio: 16 / 10;
+	overflow: hidden;
+	border-radius: 6px;
+	background: var(--wpmb-papel-hundido);
+}
+
+.wpmb-ds .wpmb-fila__img img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	transition: transform .5s var(--wpmb-ease);
+}
+
+.wpmb-ds .wpmb-fila:hover .wpmb-fila__img img {
+	transform: scale(1.04);
+}
+
+.wpmb-ds .wpmb-cat {
+	display: block;
+	color: var(--wpmb-azul);
+	font: 600 12px/16px var(--wpmb-ui);
+}
+
+.wpmb-ds .wpmb-fila__tit {
+	margin: 4px 0 6px;
+	font-size: 23px;
+	line-height: 28px;
+}
+
+/* El título es el enlace; su ::after cubre la fila entera para que toda sea clicable sin
+   anidar enlaces. */
+.wpmb-ds .wpmb-fila__tit a::after,
+.wpmb-ds .wpmb-card__tit a::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	border-radius: inherit;
+}
+
+.wpmb-ds .wpmb-meta {
+	display: block;
+	color: var(--wpmb-tinta-2);
+	font-size: 13px;
+	line-height: 18px;
+}
+
+/* Imagen de respaldo (icono del tipo de contenido) y portadas verticales: se muestran enteras. */
+.wpmb-ds .wpmb-img--icono,
+.wpmb-ds .wpmb-img--tapa {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--wpmb-papel-hundido);
+}
+
+.wpmb-ds .wpmb-img--icono img {
+	width: auto;
+	height: auto;
+	max-width: 55%;
+	max-height: 55%;
+	object-fit: contain;
+}
+
+.wpmb-ds .wpmb-img--tapa img {
+	width: auto;
+	height: 84%;
+	border-radius: 2px;
+	object-fit: contain;
+	box-shadow: 0 1px 2px rgba(14, 34, 56, .12), 0 8px 20px rgba(14, 34, 56, .12);
+}
+
+.wpmb-ds .wpmb-fila:hover .wpmb-img--icono img,
+.wpmb-ds .wpmb-fila:hover .wpmb-img--tapa img,
+.wpmb-ds .wpmb-card:hover .wpmb-img--icono img {
+	transform: none;
+}
+
+/* ── 8. Tarjetas + lista (página de autor) ──────────────────────────────────────────────────── */
+
+.wpmb-ds .wpmb-art {
+	display: grid;
+	grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+	gap: 48px;
+	align-items: start;
+}
+
+.wpmb-ds .wpmb-art--solo-tarjetas {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.wpmb-ds .wpmb-tarjetas {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: 24px;
+}
+
+.wpmb-ds .wpmb-card {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.wpmb-ds .wpmb-card--grande {
+	grid-column: 1 / -1;
+}
+
+.wpmb-ds .wpmb-card__foto {
+	position: relative;
+	display: block;
+	aspect-ratio: 16 / 9;
+	margin: 0 0 8px;
+	overflow: hidden;
+	border-radius: 6px;
+	background: var(--wpmb-papel-hundido);
+}
+
+.wpmb-ds .wpmb-card__foto > img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	transition: transform .5s var(--wpmb-ease);
+}
+
+.wpmb-ds .wpmb-card:hover .wpmb-card__foto > img {
+	transform: scale(1.03);
+}
+
+.wpmb-ds .wpmb-card__foto.wpmb-img--icono > img,
+.wpmb-ds .wpmb-card__foto.wpmb-img--tapa > img {
+	position: static;
+	inset: auto;
+}
+
+.wpmb-ds .wpmb-card__foto.wpmb-img--tapa > img {
+	width: auto;
+	height: 84%;
+}
+
+.wpmb-ds .wpmb-card__tipo {
+	position: absolute;
+	left: 10px;
+	bottom: 10px;
+	padding: 3px 8px;
+	border-radius: 4px;
+	background: rgba(14, 34, 56, .88);
+	color: #fff;
+	font: 600 12px/16px var(--wpmb-ui);
+}
+
+.wpmb-ds .wpmb-card .wpmb-cat {
+	letter-spacing: .1em;
+	text-transform: uppercase;
+}
+
+.wpmb-ds .wpmb-card__tit {
+	font-size: 22px;
+	line-height: 27px;
+}
+
+.wpmb-ds .wpmb-card--grande .wpmb-card__tit {
+	font-size: 30px;
+	line-height: 34px;
+}
+
+.wpmb-ds .wpmb-card__tit a:hover {
+	color: var(--wpmb-azul);
+}
+
+.wpmb-ds .wpmb-card__ext {
+	margin: 0;
+	color: var(--wpmb-tinta-2);
+	font-size: 15px;
+	line-height: 23px;
+}
+
+.wpmb-ds .wpmb-mas__tit {
+	margin: 0 0 6px;
+	font: 600 13px/16px var(--wpmb-ui);
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	color: var(--wpmb-tinta);
+}
+
+.wpmb-ds.premium-blog-widget--layout-vc_tarjetas .premium-blog-widget__list {
+	display: block;
+	margin: 0 0 20px;
+	padding: 0;
+	list-style: none;
+	border-top: 1px solid var(--wpmb-linea);
+}
+
+.wpmb-ds .wpmb-renglon {
+	margin: 0;
+	list-style: none;
+}
+
+.wpmb-ds .wpmb-renglon a {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 12px;
+	align-items: baseline;
+	padding: 14px 0;
+	border-bottom: 1px solid var(--wpmb-linea);
+	transition: color .2s var(--wpmb-ease);
+}
+
+.wpmb-ds .wpmb-renglon b {
+	font: 600 20px/25px var(--wpmb-tit);
+}
+
+.wpmb-ds .wpmb-renglon a:hover b {
+	color: var(--wpmb-azul);
+}
+
+.wpmb-ds .wpmb-renglon small {
+	color: var(--wpmb-tinta-2);
+	font-size: 13px;
+	white-space: nowrap;
+}
+
+/* ── 9. Ranking numerado («Lo más leído») ───────────────────────────────────────────────────── */
+
+.wpmb-ds .wpmb-cab--ranking {
+	margin-bottom: 8px;
+}
+
+.wpmb-ds .wpmb-cab--ranking .wpmb-cab__tit,
+.wpmb-ds .wpmb-cab--compacta .wpmb-cab__tit {
+	font-size: 26px;
+	line-height: 30px;
+}
+
+.wpmb-ds.premium-blog-widget--layout-vc_ranking .premium-blog-widget__list {
+	display: block;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	counter-reset: wpmb-n;
+}
+
+.wpmb-ds .wpmb-puesto {
+	margin: 0;
+	list-style: none;
+	counter-increment: wpmb-n;
+}
+
+.wpmb-ds .wpmb-puesto a {
+	display: grid;
+	grid-template-columns: 36px minmax(0, 1fr);
+	gap: 10px;
+	padding: 14px 0;
+	border-top: 1px solid var(--wpmb-linea);
+}
+
+.wpmb-ds .wpmb-puesto:first-child a {
+	border-top: 0;
+}
+
+.wpmb-ds .wpmb-puesto a::before {
+	content: counter(wpmb-n);
+	color: var(--wpmb-oro-texto);
+	font: 600 30px/28px var(--wpmb-tit);
+	font-variant-numeric: lining-nums;
+}
+
+.wpmb-ds .wpmb-puesto b {
+	display: block;
+	font: 600 19px/24px var(--wpmb-tit);
+	transition: color .2s var(--wpmb-ease);
+}
+
+.wpmb-ds .wpmb-puesto a:hover b {
+	color: var(--wpmb-azul);
+}
+
+.wpmb-ds .wpmb-puesto small {
+	color: var(--wpmb-tinta-2);
+	font-size: 13px;
+}
+
+/* ── 10. Paginación y estados ───────────────────────────────────────────────────────────────── */
+
+.wpmb-ds .premium-blog-widget__pagination-ajax {
+	justify-content: flex-start;
+	margin-top: 18px;
+}
+
+body .wpmb-ds button.wp-multipost-blog-load-more-btn {
+	position: relative;
+	min-height: 36px;
+	padding: 7px 14px;
+	border: 1px solid var(--wpmb-azul);
+	border-radius: 4px;
+	background: transparent;
+	color: var(--wpmb-azul);
+	font: 600 14px/20px var(--wpmb-ui);
+	letter-spacing: 0;
+	text-transform: none;
+	box-shadow: none;
+	transform: none;
+}
+
+body .wpmb-ds button.wp-multipost-blog-load-more-btn:hover,
+body .wpmb-ds button.wp-multipost-blog-load-more-btn:focus {
+	background: var(--wpmb-azul-suave);
+	color: var(--wpmb-azul);
+	box-shadow: none;
+	transform: none;
+}
+
+body .wpmb-ds button.wp-multipost-blog-load-more-btn.is-loading {
+	color: transparent;
+}
+
+.wpmb-ds .wp-multipost-blog-load-more-btn .btn-spinner {
+	width: 16px;
+	height: 16px;
+	left: calc(50% - 8px);
+	top: calc(50% - 8px);
+	border-color: var(--wpmb-azul-suave);
+	border-top-color: var(--wpmb-azul);
+}
+
+.wpmb-ds .infinite-loader-spinner {
+	border-color: var(--wpmb-linea);
+	border-top-color: var(--wpmb-azul);
+}
+
+.wpmb-ds .premium-blog-widget__pagination {
+	justify-content: flex-start;
+	margin-top: 24px;
+}
+
+.wpmb-ds .premium-blog-widget__pagination .page-numbers {
+	min-width: 40px;
+	height: 40px;
+	border: 1px solid var(--wpmb-linea);
+	border-radius: 4px;
+	background: var(--wpmb-papel);
+	color: var(--wpmb-tinta-2);
+	font: 600 14px/20px var(--wpmb-ui);
+}
+
+.wpmb-ds .premium-blog-widget__pagination .page-numbers:hover,
+.wpmb-ds .premium-blog-widget__pagination .page-numbers.current {
+	border-color: var(--wpmb-noche);
+	background: var(--wpmb-noche);
+	color: #fff;
+}
+
+.wpmb-ds .premium-blog-widget__pagination .page-numbers.prev,
+.wpmb-ds .premium-blog-widget__pagination .page-numbers.next {
+	border-radius: 4px;
+}
+
+.wpmb-ds .premium-blog-widget__no-more {
+	text-align: left !important;
+	margin-top: 16px !important;
+	color: var(--wpmb-tinta-2) !important;
+	font: 400 14px/20px var(--wpmb-ui) !important;
+}
+
+.wpmb-ds .premium-blog-no-posts {
+	padding: 24px;
+	border: 1px dashed var(--wpmb-linea);
+	border-radius: 8px;
+	color: var(--wpmb-tinta-2);
+	font-size: 15px;
+	text-align: left;
+}
+
+/* ── 11. Autores: franja y chips ────────────────────────────────────────────────────────────── */
+
+.wpmb-ds.wpmb-autores .premium-author-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.wpmb-ds .premium-author-list--vc_franja {
+	display: grid;
+	grid-template-columns: repeat(var(--wpmb-autores-cols, 5), minmax(0, 1fr));
+	gap: 12px;
+}
+
+.wpmb-ds .premium-author-list--vc_franja .author-item,
+.wpmb-ds .premium-author-list--vc_chips .author-item {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	list-style: none;
+}
+
+.wpmb-ds .wpmb-autor {
+	display: grid;
+	grid-template-columns: 44px minmax(0, 1fr);
+	gap: 10px;
+	align-items: center;
+	height: 100%;
+	padding: 10px 12px;
+	border: 1px solid var(--wpmb-linea);
+	border-radius: 8px;
+	background: var(--wpmb-papel);
+	transition: transform .3s var(--wpmb-ease), box-shadow .3s var(--wpmb-ease);
+}
+
+.wpmb-ds .wpmb-autor:hover {
+	transform: translateY(-2px);
+	box-shadow: var(--wpmb-sombra);
+}
+
+.wpmb-ds .wpmb-autor img,
+.wpmb-ds .wpmb-autor-chip img {
+	flex: none;
+	width: 44px;
+	height: 44px;
+	max-width: none;
+	border: 1px solid var(--wpmb-linea);
+	border-radius: 999px;
+	background: var(--wpmb-papel);
+	object-fit: cover;
+}
+
+.wpmb-ds .wpmb-autor__txt {
+	min-width: 0;
+}
+
+.wpmb-ds .wpmb-autor b {
+	display: block;
+	color: var(--wpmb-tinta);
+	font: 600 17px/20px var(--wpmb-tit);
+	text-wrap: balance;
+}
+
+.wpmb-ds .wpmb-autor__ult {
+	display: block;
+	overflow: hidden;
+	color: var(--wpmb-tinta-2);
+	font-size: 13px;
+	line-height: 18px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.wpmb-ds .premium-author-list--vc_chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+.wpmb-ds .wpmb-autor-chip {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 16px 8px 8px;
+	border: 1px solid var(--wpmb-linea);
+	border-radius: 8px;
+	background: var(--wpmb-papel);
+	color: var(--wpmb-tinta);
+	font: 500 15px/20px var(--wpmb-ui);
+	transition: border-color .2s var(--wpmb-ease), box-shadow .3s var(--wpmb-ease);
+}
+
+.wpmb-ds .wpmb-autor-chip img {
+	width: 40px;
+	height: 40px;
+}
+
+.wpmb-ds .wpmb-autor-chip:hover {
+	border-color: var(--wpmb-linea-fuerte);
+	box-shadow: var(--wpmb-sombra);
+}
+
+.wpmb-ds.wpmb-autores .wpmb-cab--compacta {
+	margin-bottom: 16px;
+}
+
+/* ── 12. Últimos comentarios ────────────────────────────────────────────────────────────────── */
+
+.wpmb-ds .wpmb-comentarios {
+	display: grid;
+	gap: 0;
+}
+
+.wpmb-ds .wpmb-comentario {
+	display: block;
+	padding: 14px 0;
+}
+
+.wpmb-ds .wpmb-comentario + .wpmb-comentario {
+	border-top: 1px solid var(--wpmb-linea);
+}
+
+.wpmb-ds .wpmb-comentario q {
+	display: -webkit-box;
+	overflow: hidden;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	color: var(--wpmb-tinta);
+	font: 400 16px/25px var(--wpmb-ui);
+	quotes: "«" "»";
+}
+
+.wpmb-ds .wpmb-quien {
+	display: block;
+	margin-top: 6px;
+	color: var(--wpmb-tinta-2);
+	font-size: 13px;
+	line-height: 18px;
+}
+
+.wpmb-ds .wpmb-quien b {
+	color: var(--wpmb-tinta);
+	font-weight: 600;
+}
+
+.wpmb-ds .wpmb-quien em {
+	color: var(--wpmb-azul);
+	font-style: normal;
+	font-weight: 500;
+}
+
+.wpmb-ds .wpmb-comentario:hover em {
+	text-decoration: underline;
+}
+
+/* ── 13. Movimiento: solo si no se pide menos ───────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: no-preference) {
+	.wpmb-ds .wpmb-hero__foto img {
+		animation: wpmb-acercar 1.2s var(--wpmb-ease) both;
+	}
+
+	.wpmb-ds .wpmb-hero__tx > * {
+		animation: wpmb-subir .8s var(--wpmb-ease) both;
+	}
+
+	.wpmb-ds .wpmb-hero__tx > *:nth-child(2) { animation-delay: .06s; }
+	.wpmb-ds .wpmb-hero__tx > *:nth-child(3) { animation-delay: .12s; }
+	.wpmb-ds .wpmb-hero__tx > *:nth-child(4) { animation-delay: .18s; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.wpmb-ds *,
+	.wpmb-ds *::before,
+	.wpmb-ds *::after {
+		transition: none !important;
+	}
+
+	.wpmb-ds .wpmb-fila:hover .wpmb-fila__img img,
+	.wpmb-ds .wpmb-card:hover .wpmb-card__foto > img,
+	.wpmb-ds .wpmb-autor:hover {
+		transform: none;
+	}
+}
+
+@keyframes wpmb-subir {
+	from { opacity: 0; transform: translateY(18px); }
+	to { opacity: 1; transform: none; }
+}
+
+@keyframes wpmb-acercar {
+	from { transform: scale(1.06); }
+	to { transform: none; }
+}
+
+/* ── 14. Responsive (cortes del mockup: 1100 y 900) ─────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+	.wpmb-ds .wpmb-art {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 40px;
+	}
+
+	.wpmb-ds .premium-author-list--vc_franja {
+		display: flex;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		padding-bottom: 4px;
+	}
+
+	.wpmb-ds .premium-author-list--vc_franja .author-item {
+		flex: 0 0 230px;
+		scroll-snap-align: start;
+	}
+}
+
+@media (max-width: 900px) {
+	.wpmb-ds .wpmb-hero {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 24px;
+	}
+
+	.wpmb-ds .wpmb-hero__foto {
+		order: -1;
+		box-shadow: none;
+	}
+
+	.wpmb-ds .wpmb-hero__tit {
+		font-size: 34px;
+		line-height: 39px;
+	}
+
+	.wpmb-ds .wpmb-hero__sub {
+		margin: 12px 0 20px;
+		font-size: 17px;
+		line-height: 27px;
+	}
+
+	.wpmb-ds .wpmb-cab__tit {
+		font-size: 28px;
+		line-height: 32px;
+	}
+
+	.wpmb-ds .wpmb-cab--con-bajada .wpmb-cab__tit,
+	.wpmb-ds .wpmb-cab--grande .wpmb-cab__tit {
+		font-size: 30px;
+		line-height: 34px;
+	}
+
+	.wpmb-ds .wpmb-cab--ranking .wpmb-cab__tit,
+	.wpmb-ds .wpmb-cab--compacta .wpmb-cab__tit {
+		font-size: 22px;
+		line-height: 26px;
+	}
+
+	.wpmb-ds .wpmb-cab--con-bajada .wpmb-enlace,
+	.wpmb-ds .wpmb-cab--grande .wpmb-enlace {
+		display: none;
+	}
+
+	.wpmb-ds .wpmb-cab .wpmb-chips {
+		flex-wrap: nowrap;
+		max-width: 100%;
+		overflow-x: auto;
+	}
+
+	.wpmb-ds .wpmb-cab .wpmb-chip {
+		flex: none;
+	}
+
+	.wpmb-ds .wpmb-fila {
+		grid-template-columns: 112px minmax(0, 1fr);
+		gap: 14px;
+		margin: 0 -10px;
+		padding: 10px;
+	}
+
+	.wpmb-ds .wpmb-fila--sin-imagen {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.wpmb-ds .wpmb-fila__tit {
+		font-size: 19px;
+		line-height: 23px;
+	}
+
+	.wpmb-ds .wpmb-tarjetas {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.wpmb-ds .wpmb-card--grande .wpmb-card__tit {
+		font-size: 25px;
+		line-height: 30px;
+	}
+
+	.wpmb-ds .premium-author-list--vc_franja .author-item {
+		flex-basis: 220px;
+	}
+}

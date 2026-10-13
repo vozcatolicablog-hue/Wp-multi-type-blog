@@ -176,7 +176,10 @@
 
 .list-post-item {
 	display: grid;
-	grid-template-columns: 320px 1fr;
+	/* Miniatura fluida: hasta 320 px pero nunca más del 38 % de la fila. Con 320 px fijos, en una
+	   columna estrecha (archivo con barra lateral) el texto quedaba en ~185 px, con títulos de 6
+	   renglones. */
+	grid-template-columns: minmax(150px, min(320px, 38%)) minmax(0, 1fr);
 	gap: 28px;
 	align-items: center;
 	padding: 12px;
@@ -455,7 +458,7 @@
 	}
 	
 	.list-post-item {
-		grid-template-columns: 280px 1fr;
+		grid-template-columns: minmax(150px, min(280px, 38%)) minmax(0, 1fr);
 		gap: 20px;
 	}
 	.list-post-item__title {
@@ -1040,10 +1043,18 @@
 .wpmptb-heading__title {
 	margin: 0;
 	padding: 0;
+	/* Inter explicita, con la misma pila de reserva que usa el resto del sitio.
+	   Antes esto apuntaba a la tipografia global "H3" del kit (vcs04h3) que,
+	   pese al nombre, es Cormorant Garamond y no el estilo del elemento h3: el
+	   encabezado salia en serif. Tampoco alcanza con heredar, porque en la
+	   portada la hoja del kit no llega a aplicarse y el body cae en la sans del
+	   sistema. Sin !important a proposito: asi este valor se puede sobrescribir
+	   desde el control de tipografia del widget en Elementor. */
+	font-family: Inter, "Source Sans Pro", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 	font-size: 16px;
 	font-weight: 700;
-	/* `normal` y no un número: es lo que computa el encabezado del tema al que
-	   esto reemplaza, y fijar 1.4 lo hacía dos píxeles más alto por renglón. */
+	/* `normal` y no un numero: es lo que computa el encabezado del tema al
+	   que esto reemplaza, y fijar 1.4 lo hacia dos pixeles mas alto por renglon. */
 	line-height: normal;
 	color: #083572;
 	text-transform: none;

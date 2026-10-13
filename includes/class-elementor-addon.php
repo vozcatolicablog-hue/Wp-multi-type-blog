@@ -55,10 +55,12 @@ class Elementor_Addon {
 		require_once WP_MULTIPOST_BLOG_PATH . 'widgets/class-blog-archive-widget.php';
 		require_once WP_MULTIPOST_BLOG_PATH . 'widgets/class-author-list-widget.php';
 		require_once WP_MULTIPOST_BLOG_PATH . 'widgets/class-section-heading-widget.php';
+		require_once WP_MULTIPOST_BLOG_PATH . 'widgets/class-recent-comments-widget.php';
 		$widgets_manager->register( new \WpMultiPostTypeBlog\Widgets\Blog_Posts_Widget() );
 		$widgets_manager->register( new \WpMultiPostTypeBlog\Widgets\Blog_Archive_Widget() );
 		$widgets_manager->register( new \WpMultiPostTypeBlog\Widgets\Author_List_Widget() );
 		$widgets_manager->register( new \WpMultiPostTypeBlog\Widgets\Section_Heading_Widget() );
+		$widgets_manager->register( new \WpMultiPostTypeBlog\Widgets\Recent_Comments_Widget() );
 	}
 
 	/**
@@ -70,12 +72,17 @@ class Elementor_Addon {
 			return;
 		}
 
-		wp_register_style(
-			'wp-multipost-blog-widget-css',
-			WP_MULTIPOST_BLOG_URL . 'assets/css/blog-posts-widget.css',
-			array(),
-			WP_MULTIPOST_BLOG_VERSION
-		);
+		// La version sale de la fecha del archivo, no de la del plugin: editar el CSS
+		// sin tocar la version dejaba a los navegadores sirviendo la hoja vieja.
+		$css_rel = 'assets/css/blog-posts-widget.css';
+		$css_ver = @filemtime( dirname( __DIR__ ) . '/' . $css_rel );
+		wp_register_style( 'wp-multipost-blog-widget-css', WP_MULTIPOST_BLOG_URL . $css_rel, array(), $css_ver ? (string) $css_ver : WP_MULTIPOST_BLOG_VERSION );
+
+		// Sistema de diseño de Voz Católica: tokens, fuentes autoalojadas y los diseños
+		// «Sistema VC». Va aparte para que las páginas con los diseños clásicos no lo carguen.
+		$ds_rel = 'assets/css/sistema.css';
+		$ds_ver = @filemtime( dirname( __DIR__ ) . '/' . $ds_rel );
+		wp_register_style( 'wp-multipost-blog-ds-css', WP_MULTIPOST_BLOG_URL . $ds_rel, array( 'wp-multipost-blog-widget-css' ), $ds_ver ? (string) $ds_ver : WP_MULTIPOST_BLOG_VERSION );
 
 		wp_register_script(
 			'wp-multipost-blog-widget-js',
@@ -102,5 +109,6 @@ class Elementor_Addon {
 	 */
 	public function enqueue_editor_assets() {
 		wp_enqueue_style( 'wp-multipost-blog-widget-css' );
+		wp_enqueue_style( 'wp-multipost-blog-ds-css' );
 	}
 }

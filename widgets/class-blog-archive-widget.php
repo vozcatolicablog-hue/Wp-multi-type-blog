@@ -36,6 +36,7 @@ class Blog_Archive_Widget extends Blog_Posts_Widget {
 	 */
 	protected function render() {
 		$settings = $this->get_settings_for_display();
+		$raw       = $settings;
 		$widget_id = $this->get_id();
 		$page_var  = 'wpmpb_' . $widget_id . '_page';
 
@@ -44,6 +45,22 @@ class Blog_Archive_Widget extends Blog_Posts_Widget {
 		// Automatically filter by the currently viewed author on author archives.
 		if ( is_author() ) {
 			$settings['archive_author_id'] = get_queried_object_id();
+		}
+
+		// Lo mismo en los archivos de categoría, etiqueta o taxonomía: el término que se
+		// está viendo reemplaza a los términos del widget. Sin esto, cada categoría
+		// listaba todas las entradas del sitio.
+		if ( is_category() || is_tag() || is_tax() ) {
+			$term = get_queried_object();
+			if ( $term instanceof \WP_Term ) {
+				$settings['terms']        = array( $term->taxonomy . ':' . $term->slug );
+				$settings['tax_relation'] = 'AND';
+			}
+		}
+
+		// Resultados de búsqueda: el texto buscado.
+		if ( is_search() ) {
+			$settings['archive_search'] = get_search_query( false );
 		}
 
 		// Only singular views have a "current post". On archives get_queried_object_id()
@@ -56,7 +73,8 @@ class Blog_Archive_Widget extends Blog_Posts_Widget {
 		$max_pages = \WpMultiPostTypeBlog\Utils::get_max_pages( $query, $settings );
 
 		if ( ! $query->have_posts() ) {
-			echo '<div class="premium-blog-no-posts">' . esc_html__( 'No se encontraron publicaciones.', 'wp-multi-post-type-blog' ) . '</div>';
+			$empty_class = \WpMultiPostTypeBlog\Utils::is_vc_layout( $settings['layout_type'] ) ? 'premium-blog-no-posts wpmb-ds' : 'premium-blog-no-posts';
+			echo '<div class="' . esc_attr( $empty_class ) . '">' . esc_html__( 'No se encontraron publicaciones.', 'wp-multi-post-type-blog' ) . '</div>';
 			return;
 		}
 
@@ -102,6 +120,10 @@ class Blog_Archive_Widget extends Blog_Posts_Widget {
 		}
 
 		// 6.2: Call base class HTML rendering helper to eliminate code duplication
-		$this->render_widget_html( $widget_id, $settings, $query, $paged, $max_pages, $settings_signature, $columns_class, $layout_type_class, 'premium-blog-archive-widget', $active_post_types );
+		$header = \WpMultiPostTypeBlog\Utils::is_vc_layout( $settings['layout_type'] )
+			? self::build_vc_header( $raw, $settings, $query->found_posts )
+			: null;
+
+		$this->render_widget_html( $widget_id, $settings, $query, $paged, $max_pages, $settings_signature, $columns_class, $layout_type_class, 'premium-blog-archive-widget', $active_post_types, $header );
 	}
 }

@@ -108,6 +108,12 @@ Los fondos pergamino de las franjas (autores, biblioteca) son del contenedor de 
 
 ## Changelog
 
+### 3.1.0
+
+- Respeta el nivel «Solo para un grupo» de VC Biblioteca. Las consultas propias de la lista de autores (recuento de entradas y última entrada de cada autor) ya no cuentan ni muestran los documentos o colecciones que el visitante no puede ver, y las cachés de la lista de autores y del archivo se guardan por audiencia cuando existen ítems de grupo. Las demás listas ya pasaban por WP_Query, que la biblioteca filtra sola.
+- Declara la constante `WP_MULTIPOST_BLOG_VC_ODL_VISIBILITY`: con ella, VC Biblioteca (3.5.2 o posterior) deja de bloquear el nivel «Solo para un grupo» por las páginas que usan estos widgets.
+- Sin VC Biblioteca, o sin ítems de grupo, nada cambia: las consultas y las claves de caché son las de siempre.
+
 ### 3.0.3
 
 - En los resultados de búsqueda, `[wpmb_archivo_cabecera]` repite el buscador con lo buscado, para afinar sin volver atrás; conserva `post_type`.

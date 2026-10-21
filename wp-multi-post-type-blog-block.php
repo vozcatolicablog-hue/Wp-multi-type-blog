@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WP Multi-Post Type Blog Block for Elementor
  * Description: Un bloque personalizado de Elementor que permite mostrar posts de múltiples post types con filtros de taxonomía, autores, paginación avanzada (AJAX Cargar Más, Scroll Infinito) y un diseño premium mobile-friendly.
- * Version: 3.0.3
+ * Version: 3.1.0
  * Author: Voz Catolica
  * Text Domain: wp-multi-post-type-blog
  * Requires Plugins: elementor
@@ -17,10 +17,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'WP_MULTIPOST_BLOG_VERSION', '3.0.3' );
+define( 'WP_MULTIPOST_BLOG_VERSION', '3.1.0' );
 define( 'WP_MULTIPOST_BLOG_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WP_MULTIPOST_BLOG_URL', plugin_dir_url( __FILE__ ) );
 define( 'WP_MULTIPOST_BLOG_AJAX_NONCE', 'wp_multipost_blog_ajax_nonce' );
+// Declara a VC Biblioteca que los widgets respetan su visibilidad «solo para un grupo» (ver
+// Utils::library_not_in() y Utils::audience_suffix()): con esta constante, la biblioteca deja de
+// bloquear ese nivel por los widgets de este plugin.
+define( 'WP_MULTIPOST_BLOG_VC_ODL_VISIBILITY', true );
 
 /**
  * Show an admin notice when Elementor is not active.
@@ -595,6 +599,51 @@ class Utils {
 	 */
 	public static function cache_key( $suffix ) {
 		return 'wpmb_' . self::cache_version() . '_' . $suffix;
+	}
+
+	/**
+	 * Fragmento SQL de VC Biblioteca que quita los ítems «solo para un grupo» que el visitante no
+	 * puede ver: " AND {$column} NOT IN (…)" o '' (sin la biblioteca o sin ítems de grupo).
+	 *
+	 * Las consultas de WP_Query ya pasan por el filtro de la biblioteca; esto es para el SQL propio
+	 * (lista de autores).
+	 *
+	 * @param string $column Columna con el ID del post (código del plugin, nunca entrada del usuario).
+	 * @return string
+	 */
+	public static function library_not_in( $column ) {
+		if ( ! class_exists( '\VC\OneDriveLibrary\Access\Visibility' ) || ! method_exists( '\VC\OneDriveLibrary\Access\Visibility', 'sql_not_in' ) ) {
+			return '';
+		}
+
+		return (string) \VC\OneDriveLibrary\Access\Visibility::sql_not_in( $column );
+	}
+
+	/**
+	 * Sufijo de caché por audiencia de VC Biblioteca: '' mientras no haya ítems «grupo», así las
+	 * claves de siempre no cambian; con ellos, cada audiencia (anónimo, cada combinación de roles)
+	 * tiene su propia caché y nadie recibe la lista armada para otro.
+	 *
+	 * @return string
+	 */
+	public static function audience_suffix() {
+		if ( '' === self::library_not_in( 'ID' ) && ! self::library_has_groups() ) {
+			return '';
+		}
+		if ( ! class_exists( '\VC\OneDriveLibrary\Access\Viewer' ) ) {
+			return '';
+		}
+
+		return '_' . \VC\OneDriveLibrary\Access\Viewer::current()->audience_key();
+	}
+
+	/**
+	 * ¿VC Biblioteca tiene algún ítem «solo para un grupo»?
+	 *
+	 * @return bool
+	 */
+	private static function library_has_groups() {
+		return class_exists( '\VC\OneDriveLibrary\Access\Index' ) && \VC\OneDriveLibrary\Access\Index::has_group();
 	}
 
 	/**

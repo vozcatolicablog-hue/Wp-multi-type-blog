@@ -814,7 +814,9 @@ class Author_List_Widget extends Widget_Base {
 	 * @return array List of author rows.
 	 */
 	protected static function get_authors( $settings ) {
-		$cache_key = \WpMultiPostTypeBlog\Utils::cache_key( 'authors_' . md5( wp_json_encode( $settings ) ) );
+		// With "group only" items in VC Biblioteca every audience gets its own cache: the counts and the
+		// latest entry depend on what the visitor can see.
+		$cache_key = \WpMultiPostTypeBlog\Utils::cache_key( 'authors_' . md5( wp_json_encode( $settings ) ) . \WpMultiPostTypeBlog\Utils::audience_suffix() );
 
 		// Random order must not be frozen by the cache.
 		if ( 'random' !== $settings['orderby'] ) {
@@ -828,6 +830,8 @@ class Author_List_Widget extends Widget_Base {
 
 		$post_types   = $settings['post_types'];
 		$placeholders = implode( ', ', array_fill( 0, count( $post_types ), '%s' ) );
+		// Skip the VC Biblioteca "group only" items this visitor cannot see ('' when there are none).
+		$hidden = \WpMultiPostTypeBlog\Utils::library_not_in( 'ID' );
 
 		// One grouped pass gives both the entry count and the last activity date.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders are generated from the post type count.
@@ -835,7 +839,7 @@ class Author_List_Widget extends Widget_Base {
 			$wpdb->prepare(
 				"SELECT post_author, COUNT(*) AS post_count, MAX(post_date) AS last_date
 				 FROM {$wpdb->posts}
-				 WHERE post_status = 'publish' AND post_type IN ( {$placeholders} )
+				 WHERE post_status = 'publish' AND post_type IN ( {$placeholders} ){$hidden}
 				 GROUP BY post_author",
 				$post_types
 			),
@@ -966,6 +970,9 @@ class Author_List_Widget extends Widget_Base {
 		$post_types   = $settings['post_types'];
 		$type_holders = implode( ', ', array_fill( 0, count( $post_types ), '%s' ) );
 		$id_holders   = implode( ', ', array_fill( 0, count( $ids ), '%d' ) );
+		// Skip the VC Biblioteca "group only" items this visitor cannot see ('' when there are none).
+		$hidden_inner = \WpMultiPostTypeBlog\Utils::library_not_in( 'ID' );
+		$hidden_outer = \WpMultiPostTypeBlog\Utils::library_not_in( 'p.ID' );
 
 		// Join the grouped maximum back onto the table to get the actual entry.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders are generated from the argument counts.
@@ -978,10 +985,10 @@ class Author_List_Widget extends Widget_Base {
 					FROM {$wpdb->posts}
 					WHERE post_status = 'publish'
 					  AND post_type IN ( {$type_holders} )
-					  AND post_author IN ( {$id_holders} )
+					  AND post_author IN ( {$id_holders} ){$hidden_inner}
 					GROUP BY post_author
 				 ) latest ON p.post_author = latest.post_author AND p.post_date = latest.md
-				 WHERE p.post_status = 'publish' AND p.post_type IN ( {$type_holders} )",
+				 WHERE p.post_status = 'publish' AND p.post_type IN ( {$type_holders} ){$hidden_outer}",
 				array_merge( $post_types, $ids, $post_types )
 			),
 			ARRAY_A

@@ -97,7 +97,9 @@ class Blog_Archive_Widget extends Blog_Posts_Widget {
 		$post_types = $settings['post_types'];
 
 		// 1.1: Dynamically check which post types have actual posts matching the query parameters with transient caching
-		$cache_key = \WpMultiPostTypeBlog\Utils::cache_key( 'active_pt_' . md5( wp_json_encode( $settings ) ) );
+		// Per audience when VC Biblioteca has "group only" items: a post type whose only entries are
+		// group items must not show up for visitors who cannot see them.
+		$cache_key = \WpMultiPostTypeBlog\Utils::cache_key( 'active_pt_' . md5( wp_json_encode( $settings ) ) . \WpMultiPostTypeBlog\Utils::audience_suffix() );
 		$active_post_types = get_transient( $cache_key );
 		if ( false === $active_post_types ) {
 			$active_post_types = array();
